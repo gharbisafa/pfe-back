@@ -1,0 +1,128 @@
+const userAccountService = require("../services/userAccountService");
+const DataValidationError = require("../errors/dataValidationError");
+const RecordNotFoundError = require("../errors/recordNotFoundError");
+
+const get = async (req, res) => {
+  try {
+    let result = await userAccountService.get({}, { password: 0, deleted: 0 });
+    res.status(200).json(result);
+  } catch (error) {
+    res.sendStatus(500);
+  }
+};
+
+const getDeleted = async (req, res) => {
+  try {
+    let result = await userAccountService.getDeleted(
+      {},
+      { password: 0, deleted: 0 }
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    res.sendStatus(500);
+  }
+};
+
+const getById = async (req, res) => {
+  try {
+    let result = await userAccountService.getById(req.params._id);
+    if (!result || result.deleted) {
+      res.sendStatus(404);
+      return;
+    }
+    res.status(200).json(result);
+  } catch (error) {
+    res.sendStatus(500);
+  }
+};
+
+const post = async (req, res) => {
+  try {
+    let result = await userAccountService.add(req.data);
+    if (!result) {
+      res.status(400).json({
+        error: "DATA_MISSING",
+      });
+      return;
+    }
+    res.status(201).json(result);
+    return;
+  } catch (error) {
+    console.error(error);
+    if (error instanceof DataValidationError) {
+      res.status(400).json({
+        error: "DATA_VALIDATION",
+        model: error.model.modelName,
+        fields: error.issues.map((issue) => ({
+          kind: issue.kind,
+          path: issue.path,
+          value: issue.value,
+          message: issue.message,
+        })),
+      });
+    } else {
+      res.sendStatus(500);
+    }
+  }
+};
+
+const putSelf = async (req, res) => {
+  try {
+    let result = await userAccountService.updateById(req.user._id, req.data);
+    if (!result) {
+      res.status(400).json({
+        error: "DATA_MISSING",
+      });
+    } else {
+      res.status(200).json(result);
+    }
+  } catch (error) {
+    if (error instanceof RecordNotFoundError) {
+      res.sendStatus(404);
+    } else if (error instanceof DataValidationError) {
+      console.error(error);
+      res.status(400).json({
+        error: "DATA_VALIDATION",
+        model: error.model.modelName,
+        fields: error.issues.map((issue) => ({
+          kind: issue.kind,
+          path: issue.path,
+          value: issue.value,
+          message: issue.message,
+        })),
+      });
+    } else {
+      console.error(error);
+      res.sendStatus(500);
+    }
+  }
+};
+
+const deleteSelf = async (req, res) => {
+  try {
+    let result = await userAccountService.deleteById(req.user._id);
+    if (!result) {
+      res.status(400).json({
+        error: "ALREADY_DELETED",
+      });
+      return;
+    }
+    res.status(200).json(result);
+  } catch (error) {
+    if (error instanceof RecordNotFoundError) {
+      res.sendStatus(404);
+    } else {
+      console.error(error);
+      res.sendStatus(500);
+    }
+  }
+};
+
+module.exports = {
+  get,
+  getDeleted,
+  getById,
+  post,
+  putSelf,
+  deleteSelf,
+};
