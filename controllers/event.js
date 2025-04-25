@@ -89,17 +89,7 @@ const getDeleted = async (req, res) => {
 
 const add = async (req, res) => {
   try {
-    const eventData = castData(req.body, [
-      "title",
-      "description",
-      "type",
-      "location",
-      "startDate",
-      "endDate",
-      "visibility",
-    ]);
-
-    const result = await eventService.add({ ...eventData, createdBy: req.user._id });
+    const result = await eventService.add(req.data);
     res.status(201).json(result);
   } catch (error) {
     if (error instanceof DataValidationError) {

@@ -61,7 +61,22 @@ const checkGuestUniqueness = async (req, res, next) => {
   }
 };
 
+const setData = async (req, res, next) => {
+  try {
+    req.data = {
+      ...req.body,
+      createdBy: req.user._id,
+    };
+    } catch (error) {
+    } finally {
+
+      next();
+    }
+  }
+;
+
 module.exports = {
+  setData,
   validateEventData,
   isEventOwner,
   checkGuestUniqueness

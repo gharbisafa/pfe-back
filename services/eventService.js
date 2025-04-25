@@ -39,6 +39,7 @@ const getDeleted = async (filter = {}, projection = {}) => {
 };
 
 const add = async (data) => {
+    console.log(data)
   data = castData(data, [
     "title",
     "description",
@@ -51,7 +52,7 @@ const add = async (data) => {
     "bookingLink",
     "type",
     "visibility",
-    "organizer",
+    "createdBy",
     "photos",      // <-- Optional
     "guests",      // <-- Optional
     "gallery",     // <-- Optional

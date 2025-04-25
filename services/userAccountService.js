@@ -39,7 +39,8 @@ const get = async (filter = {}, projection = {}) => {
 };
 
 const getByEmail = async (email) => {
-  let userAccount = await UserAccount.findOne({ email })
+  try{
+    let userAccount = await UserAccount.findOne({ email })
     .populate(["userInfo"])
     .lean()
     .exec();
@@ -47,6 +48,10 @@ const getByEmail = async (email) => {
     return false;
   }
   return userAccount;
+  }catch(error){
+    console.error("error", error);
+  }
+
 };
 
 const getDeleted = async (filter = {}, projection = {}) => {

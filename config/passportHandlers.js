@@ -22,6 +22,7 @@ const localUserHandler = async (email, password, done) => {
     if (!(await checkPassword(password, user.password))) {
       return done(null, false);
     }
+
     return done(null, { ...user });
   } catch (error) {
     return done(error, false);

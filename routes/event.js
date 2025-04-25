@@ -8,6 +8,7 @@ const eventMiddleware = require("../middlewares/event");
 router.post(
   "/",
   passport.authenticate("jwt", { session: false }),
+  eventMiddleware.setData,
   eventMiddleware.validateEventData,
   eventController.add
 );

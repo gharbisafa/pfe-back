@@ -16,6 +16,6 @@ fs.chmodSync(tmpPath, 0o777);
 
 require("./db").connectDB();
 
-require("../utils/keys").generateKeypair();
+// require("../utils/keys").generateKeypair();
 
 require("./passport");
