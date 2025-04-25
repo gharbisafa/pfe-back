@@ -6,7 +6,6 @@ const checkToken = (req, res) => {
     token,
     ...req.user.userInfo,
     _id: req.user._id,
-    balance: req.user.balance,
     role: req.user.role,
   });
 };
