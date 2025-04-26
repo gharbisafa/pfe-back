@@ -68,7 +68,7 @@ const get = async (req, res) => {
 
 const getById = async (req, res) => {
   try {
-    const event = await eventService.getByIdWithAccess(req.params.id, req.user?._id);
+    const event = await eventService.getById(req.params.id, req.user?._id);
     if (!event) return res.status(404).json({ error: "NOT_FOUND_OR_ACCESS_DENIED" });
     res.status(200).json(event);
   } catch (error) {

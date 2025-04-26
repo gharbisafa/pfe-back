@@ -30,7 +30,7 @@ const isEventOwner = async (req, res, next) => {
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ error: "Event not found" });
 
-    if (event.createdBy.toString() !== req.user.id) {
+    if (event.createdBy.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: "Unauthorized: not the event owner" });
     }
 

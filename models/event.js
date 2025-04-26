@@ -79,6 +79,7 @@ const eventSchema = mongoose.Schema(
         message: "Invalid booking link URL",
       },
     },
+    deleted: { type: Boolean, default: false },
     guests: {
       type: [
         {

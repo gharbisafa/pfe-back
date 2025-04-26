@@ -110,6 +110,7 @@ const deleteById = async (_id) => {
   if (event.deleted) return false;
   
   event.deleted = true;
+  console.log("event.deleted",event);
   await event.save();
   return event;
   
