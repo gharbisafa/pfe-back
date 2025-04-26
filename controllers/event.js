@@ -1,4 +1,3 @@
-// controllers/event.js
 const Event = require("../models/event");
 const eventService = require("../services/eventService");
 const DataValidationError = require("../errors/dataValidationError");
@@ -20,7 +19,7 @@ const get = async (req, res) => {
       search,
     } = req.query;
 
-    const filters = { visibility: "public" };
+    const filters = { visibility: "public" , deleted: false };
 
     if (type) filters.type = type;
     if (location) filters.location = { $regex: location, $options: "i" };
