@@ -7,7 +7,7 @@ const passport = require("passport");
 router.post("/", middlewares.setData, userAccountController.post);
 
 router.put(
-  "/",
+  "/:id",
   passport.authenticate("jwt", { session: false }),
   middlewares.setData,
   userAccountController.putSelf
