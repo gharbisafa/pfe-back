@@ -19,6 +19,7 @@ const jwtOptions = {
 
 passport.use(
   new JwtStrategy(jwtOptions, async (jwt_payload, done) => {
+    console.log("JWT Payload:", jwt_payload); // Log the payload
     return jwtUserHandler(jwt_payload, done);
   })
 );
@@ -33,5 +34,6 @@ passport.use(
     return localUserHandler(email, password, done);
   })
 );
+
 
 module.exports = passport;

@@ -63,21 +63,26 @@ const checkGuestUniqueness = async (req, res, next) => {
 
 const setData = async (req, res, next) => {
   try {
-    req.data = {
-      ...req.body,
-      createdBy: req.user._id,
-    };
-    } catch (error) {
-    } finally {
-
-      next();
-    }
+    req.data = { ...req.body, createdBy: req.user._id };
+  } catch (error) {
+  } finally {
+    next();
   }
-;
+};
+
+const setUserId = (req, res, next) => {
+  if (!req.user?._id) {
+    return res.status(401).json({ error: "Unauthorized: User ID missing" });
+  }
+  req.body.userId = req.user._id; // Attach userId to the request body
+  next();
+};
+
 
 module.exports = {
   setData,
   validateEventData,
   isEventOwner,
-  checkGuestUniqueness
+  checkGuestUniqueness,
+  setUserId 
 };

@@ -70,6 +70,13 @@ router.post(
   passport.authenticate("jwt", { session: false }),
   eventController.addFeedback
 );
+// Toggle likes, going, interested
+router.post(
+  "/:eventId/toggle",
+  passport.authenticate("jwt", { session: false }),
+  eventMiddleware.setUserId,
+  eventController.toggleField
+);
 
 
 module.exports = router;

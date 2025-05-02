@@ -5,6 +5,8 @@ const RecordNotFoundError = require("../errors/recordNotFoundError");
 const { castData } = require("../utils/general");
 const { getPaginatedEvents } = require("./eventPaginationService");
 
+const ObjectId = mongoose.Types.ObjectId;
+
 async function getFilteredEventsWithCount({ filters, sort = {}, page = 1, limit = 10 }) {
   return await getPaginatedEvents(filters, {}, page, limit, sort);
 }
@@ -39,7 +41,7 @@ const getDeleted = async (filter = {}, projection = {}) => {
 };
 
 const add = async (data) => {
-    console.log(data)
+  console.log(data);
   data = castData(data, [
     "title",
     "description",
@@ -57,11 +59,16 @@ const add = async (data) => {
     "guests",      // <-- Optional
     "gallery",     // <-- Optional
   ]);
-  if (!data) return false;
+  if (!data) {
+    console.error("Invalid data after casting.");
+    return false;
+  }
 
   try {
     const event = new Event(data);
+    console.log("Event created successfully:", event);
     await event.save();
+    console.log("Event saved successfully:", event);
     return event;
   } catch (error) {
     if (error instanceof mongoose.Error.ValidationError) {
@@ -116,6 +123,41 @@ const deleteById = async (_id) => {
   
 };
 
+//likes,going,interested
+
+const toggleEventField = async (eventId, userId, field) => {
+  console.log("Raw eventId:", eventId);
+console.log("Type of eventId:", typeof eventId);
+console.log("Is valid ObjectId:", ObjectId.isValid(eventId));
+
+  const validFields = ["likes", "going", "interested"];
+  if (!validFields.includes(field)) {
+    throw new Error(`Invalid field: ${field}`);
+  }
+
+  // Ensure eventId is a valid ObjectId
+  if (!ObjectId.isValid(eventId)) {
+    throw new Error("Invalid event ID");
+  }
+
+  const event = await Event.findById(new ObjectId(eventId));
+  if (!event) throw new Error("Event not found");
+
+  const userIdStr = userId.toString();
+
+  // Ensure userId comparison is consistent
+  const index = event[field].map(id => id.toString()).indexOf(userIdStr);
+  if (index > -1) {
+    event[field].splice(index, 1); // Remove if exists
+  } else {
+    event[field].push(userId); // Add if new
+  }
+
+  await event.save();
+  return event;
+};
+
+
 module.exports = {
   getById,
   get,
@@ -124,4 +166,5 @@ module.exports = {
   updateById,
   deleteById,
   getFilteredEventsWithCount,
+  toggleEventField
 };

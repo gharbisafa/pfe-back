@@ -72,7 +72,7 @@ const getById = async (req, res) => {
     res.status(200).json(event);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "FETCH_FAILED" });
+    res.status(500).json({ error: "An error occurred while fetching the event" });
   }
 };
 
@@ -88,7 +88,9 @@ const getDeleted = async (req, res) => {
 
 const add = async (req, res) => {
   try {
+    console.log("entreing add event controller", req.data);
     const result = await eventService.add(req.data);
+    console.log("result", result);
     res.status(201).json(result);
   } catch (error) {
     if (error instanceof DataValidationError) {
@@ -202,6 +204,26 @@ const addFeedback = async (req, res) => {
     res.status(500).json({ error: "FEEDBACK_FAILED" });
   }
 };
+//likes,going,interested
+const toggleField = async (req, res) => {
+  const { eventId } = req.params; // Changed from `id` to match route
+  const { field } = req.body;
+
+  console.log("Toggling field:", { eventId, userId: req.user?._id, field }); // Debug
+
+  try {
+    const updatedEvent = await eventService.toggleEventField(
+      eventId,
+      req.user._id,
+      field
+    );
+    res.status(200).json(updatedEvent);
+  } catch (error) {
+    console.error("Error toggling field:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
 module.exports = {
   get,
@@ -213,6 +235,7 @@ module.exports = {
   addRSVP,
   addComment,
   addFeedback,
+  toggleField, 
 };
 
 
