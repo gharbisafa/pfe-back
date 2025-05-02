@@ -4,6 +4,7 @@ const passport = require("passport");
 const eventController = require("../controllers/event");
 const eventMiddleware = require("../middlewares/event");
 
+
 // CREATE: Add a new event
 router.post(
   "/",
@@ -29,6 +30,13 @@ router.delete(
   eventMiddleware.isEventOwner,
   eventController.deleteById
 );
+// GET: Get all events created by the authenticated user
+router.get(
+  '/user/me',
+  passport.authenticate('jwt', { session: false }),
+  eventController.getMyEvents
+);
+
 
 // GET ALL: Get all events with filters, pagination, sorting
 router.get(
@@ -77,6 +85,5 @@ router.post(
   eventMiddleware.setUserId,
   eventController.toggleField
 );
-
 
 module.exports = router;

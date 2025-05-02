@@ -1,5 +1,6 @@
 const Event = require("../models/event");
 const eventService = require("../services/eventService");
+const eventPaginationService = require("../services/eventPaginationService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const { castData } = require("../utils/general");
@@ -224,8 +225,20 @@ const toggleField = async (req, res) => {
   }
 };
 
+const getMyEvents = async (req, res) => {
+  try {
+    const events = await Event.find({ 
+      createdBy: req.user._id,
+      deleted: false
+    });
+    res.json(events);
+  } catch (error) {
+    res.status(500).json({ error: 'SERVER_ERROR' });
+  }
+};
 
 module.exports = {
+  getMyEvents,
   get,
   getById,
   getDeleted,
