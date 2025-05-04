@@ -22,6 +22,10 @@ const userSchema = mongoose.Schema(
         message: "invalid_phone_number",
       },
     },
+    profileImage: {
+      type: String, // Path or full URL to the image
+      default: "",  // Optional default or null if none uploaded yet
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: true },

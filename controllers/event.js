@@ -1,6 +1,5 @@
 const Event = require("../models/event");
 const eventService = require("../services/eventService");
-const eventPaginationService = require("../services/eventPaginationService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const { castData } = require("../utils/general");

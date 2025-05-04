@@ -6,6 +6,7 @@ const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const { castData } = require("../utils/general");
 
+
 const getById = async (_id) => {
   let userAccount = await UserAccount.findById(_id)
     .populate(["userInfo"])
@@ -149,8 +150,20 @@ const deleteById = async (_id) => {
   );
   return userAccount;
 };
+const updateProfileImage = async (userAccountId, imagePath) => {
+  const userAccount = await UserAccount.findById(userAccountId).exec();
+  if (!userAccount) {
+    throw new RecordNotFoundError(UserAccount, userAccountId);
+  }
+
+  const updatedUser = await userService.updateProfileImage(userAccount.userInfo, imagePath);
+  return updatedUser;
+};
+
+
 
 module.exports = {
+  updateProfileImage,
   getById,
   get,
   getByEmail,

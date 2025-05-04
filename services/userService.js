@@ -58,5 +58,17 @@ const updateById = async (_id, data, session) => {
     }
   }
 };
+const updateProfileImage = async (userId, imagePath) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new RecordNotFoundError(User, userId);
+  }
 
-module.exports = { getById, get, add, updateById };
+  user.profileImage = imagePath;
+  
+  console.log("Updated User:", user);
+
+  return await user.save();
+};
+
+module.exports = { updateProfileImage, getById, get, add, updateById };
