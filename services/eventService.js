@@ -182,8 +182,19 @@ const updateById = async (eventId, updateData, currentUserId) => {
       }]);
     }
 
-    // Handle guests with additional validation
+    // Parse guests from string if needed
     if (updateData.guests) {
+      if (typeof updateData.guests === "string") {
+        try {
+          updateData.guests = JSON.parse(updateData.guests);
+        } catch {
+          throw new DataValidationError(Event, [{
+            path: "guests",
+            message: "Invalid guests format. Must be a JSON array."
+          }]);
+        }
+      }
+
       const event = await Event.findById(eventId).lean();
       if (!event) throw new RecordNotFoundError(Event, eventId);
 
@@ -191,6 +202,11 @@ const updateById = async (eventId, updateData, currentUserId) => {
         event.createdBy.toString(),
         currentUserId.toString()
       ]);
+    }
+
+    // Add support for updating photos
+    if (updateData.photos) {
+      castedData.photos = updateData.photos;
     }
 
     const updatedEvent = await Event.findOneAndUpdate(
@@ -201,6 +217,7 @@ const updateById = async (eventId, updateData, currentUserId) => {
 
     if (!updatedEvent) throw new RecordNotFoundError(Event, eventId);
     return updatedEvent;
+    
   } catch (error) {
     if (error instanceof mongoose.Error.ValidationError) {
       throw new DataValidationError(Event, Object.values(error.errors));
