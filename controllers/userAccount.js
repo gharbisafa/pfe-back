@@ -121,27 +121,18 @@ const deleteSelf = async (req, res) => {
 const uploadProfileImage = async (req, res) => {
   try {
     const file = req.file;
-    // console.log("Uploaded File:", file); // ✅ Debug here
-    
     if (!file) {
       return res.status(400).json({ error: "NO_IMAGE_PROVIDED" });
     }
-
     const updatedUser = await userAccountService.updateProfileImage(
       req.user._id,
       file.path
     );
-
-    // console.log("Returning profileImage:", updatedUser.profileImage);// ✅ Debug here
-
-   
     const normalizedPath = updatedUser.profileImage.replace(/\\/g, "/");
     res.status(200).json({
       message: "PROFILE_IMAGE_UPDATED",
       profileImage: `${req.protocol}://${req.get("host")}/${normalizedPath}`,
     });
-
-    
   } catch (error) {
     console.error(error);
     if (error instanceof RecordNotFoundError) {

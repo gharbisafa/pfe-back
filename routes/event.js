@@ -4,7 +4,7 @@ const passport = require("passport");
 const eventController = require("../controllers/event");
 const eventMiddleware = require("../middlewares/event");
 
-const { uploadEventPhotos } = require("../utils/upload"); // Import the multer upload configuration
+const { uploadEventPhotos } = require("../middlewares/upload"); // Import the multer upload configuration
 
 // CREATE: Add a new event
 router.post(

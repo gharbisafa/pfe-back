@@ -4,7 +4,7 @@ const middlewares = require("../middlewares/userAccount");
 const userAccountController = require("../controllers/userAccount");
 const passport = require("passport");
 
-const { uploadProfileImage } = require("../utils/upload");
+const { uploadProfileImage } = require("../middlewares/upload");
 
 router.put(
   "/profile-image",
