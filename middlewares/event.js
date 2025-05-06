@@ -1,6 +1,4 @@
 const Event = require("../models/event");
-const multer = require("multer");
-const path = require("path");
 
 
 // Middleware to validate basic event data
@@ -87,43 +85,6 @@ const setUserId = (req, res, next) => {
   next();
 };
 
-// Set up multer for file uploads
-// Supported image MIME types
-const MIME_TYPES = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/jpg": "jpg",
-};
-
-// Multer storage config for event photos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../uploads/eventPhotos")); // Store in eventPhotos folder
-  },
-  filename: (req, file, cb) => {
-    const extension = MIME_TYPES[file.mimetype] || path.extname(file.originalname).slice(1);
-    const uniqueName = `${file.fieldname}_${Date.now()}_${file.originalname.replace(/\s+/g, "_")}`;
-    cb(null, uniqueName);
-  },
-});
-
-// Filter only image files
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image/")) {
-    cb(null, true);
-  } else {
-    cb(new Error("Only images are allowed!"), false);
-  }
-};
-
-// Multer middleware for multiple images
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max per file
-}).array("photos", 3); // Accept up to 10 images under 'photos' field
-
-// Export other middlewares too
 
 
 module.exports = {
@@ -131,6 +92,5 @@ module.exports = {
   validateEventData,
   isEventOwner,
   checkGuestUniqueness,
-  setUserId,
-  upload
+  setUserId
 };

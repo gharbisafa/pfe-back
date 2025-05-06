@@ -28,7 +28,7 @@ function validateGuests(guests, userIds = []) {
     }
 
     const guestUserId = guest.user.toString();
-    
+
     // Check for duplicates in this guest list
     if (seenUsers.has(guestUserId)) {
       throw new Error(`Duplicate guest user: ${guestUserId}`);
@@ -51,43 +51,43 @@ function validateGuests(guests, userIds = []) {
     };
   });
 }
-function validateGallery(gallery, currentUserId) {
-  if (!Array.isArray(gallery)) {
-    throw new Error("Gallery must be an array");
-  }
+// function validateGallery(gallery, currentUserId) {
+//   if (!Array.isArray(gallery)) {
+//     throw new Error("Gallery must be an array");
+//   }
 
-  return gallery.map(item => {
-    // Basic validation
-    if (typeof item !== "object" || item === null) {
-      throw new Error("Each gallery item must be an object");
-    }
+//   return gallery.map(item => {
+//     // Basic validation
+//     if (typeof item !== "object" || item === null) {
+//       throw new Error("Each gallery item must be an object");
+//     }
 
-    // Validate uploader matches current user
-    if (!item.uploadedBy || !ObjectId.isValid(item.uploadedBy)) {
-      throw new Error("Gallery item requires valid uploadedBy ID");
-    }
+//     // Validate uploader matches current user
+//     if (!item.uploadedBy || !ObjectId.isValid(item.uploadedBy)) {
+//       throw new Error("Gallery item requires valid uploadedBy ID");
+//     }
 
-    if (item.uploadedBy.toString() !== currentUserId.toString()) {
-      throw new Error("Cannot add gallery items for other users");
-    }
+//     if (item.uploadedBy.toString() !== currentUserId.toString()) {
+//       throw new Error("Cannot add gallery items for other users");
+//     }
 
-    // Validate media
-    if (!item.mediaUrl || typeof item.mediaUrl !== "string") {
-      throw new Error("Gallery item requires mediaUrl string");
-    }
+//     // Validate media
+//     if (!item.mediaUrl || typeof item.mediaUrl !== "string") {
+//       throw new Error("Gallery item requires mediaUrl string");
+//     }
 
-    if (!item.mediaType || !["photo", "video"].includes(item.mediaType)) {
-      throw new Error("Gallery mediaType must be 'photo' or 'video'");
-    }
+//     if (!item.mediaType || !["photo", "video"].includes(item.mediaType)) {
+//       throw new Error("Gallery mediaType must be 'photo' or 'video'");
+//     }
 
-    return {
-      uploadedBy: new ObjectId(item.uploadedBy),
-      mediaUrl: item.mediaUrl,
-      mediaType: item.mediaType,
-      uploadedAt: item.uploadedAt || new Date()
-    };
-  });
-}
+//     return {
+//       uploadedBy: new ObjectId(item.uploadedBy),
+//       mediaUrl: item.mediaUrl,
+//       mediaType: item.mediaType,
+//       uploadedAt: item.uploadedAt || new Date()
+//     };
+//   });
+// }
 
 
 const getById = async (_id) => {
@@ -133,14 +133,26 @@ const add = async (data) => {
         message: "Invalid event data structure"
       }]);
     }
+    // Parse guests if it's a JSON string
+    if (typeof data.guests === "string") {
+      try {
+        data.guests = JSON.parse(data.guests);
+      } catch {
+        throw new DataValidationError(Event, [{
+          path: "guests",
+          message: "Invalid guests format. Must be a JSON array."
+        }]);
+      }
+    }
+
     // Handle guests with creator validation
     if (data.guests) {
       castedData.guests = validateGuests(data.guests, [data.createdBy.toString()]);
     }
-// Handle photos (basic validation if needed)
-if (data.photos && Array.isArray(data.photos)) {
-  castedData.photos = data.photos;
-}
+    // Handle photos (basic validation if needed)
+    if (data.photos && Array.isArray(data.photos)) {
+      castedData.photos = data.photos;
+    }
 
     const event = new Event(castedData);
     await event.save();
@@ -174,7 +186,7 @@ const updateById = async (eventId, updateData, currentUserId) => {
     if (updateData.guests) {
       const event = await Event.findById(eventId).lean();
       if (!event) throw new RecordNotFoundError(Event, eventId);
-      
+
       castedData.guests = validateGuests(updateData.guests, [
         event.createdBy.toString(),
         currentUserId.toString()
@@ -202,20 +214,20 @@ const deleteById = async (_id) => {
   let event = await Event.findById(_id).exec();
   if (!event) throw new RecordNotFoundError(Event, _id);
   if (event.deleted) return false;
-  
+
   event.deleted = true;
-  console.log("event.deleted",event);
+  console.log("event.deleted", event);
   await event.save();
   return event;
-  
+
 };
 
 //likes,going,interested
 
 const toggleEventField = async (eventId, userId, field) => {
   console.log("Raw eventId:", eventId);
-console.log("Type of eventId:", typeof eventId);
-console.log("Is valid ObjectId:", ObjectId.isValid(eventId));
+  console.log("Type of eventId:", typeof eventId);
+  console.log("Is valid ObjectId:", ObjectId.isValid(eventId));
 
   const validFields = ["likes", "going", "interested"];
   if (!validFields.includes(field)) {
