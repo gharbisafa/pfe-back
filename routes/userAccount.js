@@ -4,12 +4,12 @@ const middlewares = require("../middlewares/userAccount");
 const userAccountController = require("../controllers/userAccount");
 const passport = require("passport");
 
-const upload = require("../utils/upload");
+const { uploadProfileImage } = require("../utils/upload");
 
 router.put(
   "/profile-image",
   passport.authenticate("jwt", { session: false }),
-  upload.single("profileImage"),
+  uploadProfileImage,
   userAccountController.uploadProfileImage
 );
 

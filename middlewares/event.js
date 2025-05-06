@@ -1,4 +1,7 @@
 const Event = require("../models/event");
+const multer = require("multer");
+const path = require("path");
+
 
 // Middleware to validate basic event data
 const validateEventData = (req, res, next) => {
@@ -33,7 +36,7 @@ const isEventOwner = async (req, res, next) => {
     if (event.createdBy.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: "Unauthorized: not the event owner" });
     }
-
+    req.event = event; 
     next();
   } catch (error) {
     console.error(error);
@@ -63,8 +66,14 @@ const checkGuestUniqueness = async (req, res, next) => {
 
 const setData = async (req, res, next) => {
   try {
-    req.data = { ...req.body, createdBy: req.user._id };
+    req.data = {
+      ...req.body,
+      createdBy: req.user._id,
+      photos: req.files?.map(file => file.filename),
+      files: req.files
+     };
   } catch (error) {
+    return res.status(500).json({ error: "Error processing event data" });
   } finally {
     next();
   }
@@ -78,11 +87,50 @@ const setUserId = (req, res, next) => {
   next();
 };
 
+// Set up multer for file uploads
+// Supported image MIME types
+const MIME_TYPES = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/jpg": "jpg",
+};
+
+// Multer storage config for event photos
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, "../uploads/eventPhotos")); // Store in eventPhotos folder
+  },
+  filename: (req, file, cb) => {
+    const extension = MIME_TYPES[file.mimetype] || path.extname(file.originalname).slice(1);
+    const uniqueName = `${file.fieldname}_${Date.now()}_${file.originalname.replace(/\s+/g, "_")}`;
+    cb(null, uniqueName);
+  },
+});
+
+// Filter only image files
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only images are allowed!"), false);
+  }
+};
+
+// Multer middleware for multiple images
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max per file
+}).array("photos", 3); // Accept up to 10 images under 'photos' field
+
+// Export other middlewares too
+
 
 module.exports = {
   setData,
   validateEventData,
   isEventOwner,
   checkGuestUniqueness,
-  setUserId 
+  setUserId,
+  upload
 };

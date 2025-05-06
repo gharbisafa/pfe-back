@@ -4,11 +4,13 @@ const passport = require("passport");
 const eventController = require("../controllers/event");
 const eventMiddleware = require("../middlewares/event");
 
+const { uploadEventPhotos } = require("../utils/upload"); // Import the multer upload configuration
 
 // CREATE: Add a new event
 router.post(
   "/",
   passport.authenticate("jwt", { session: false }),
+  uploadEventPhotos,
   eventMiddleware.setData,
   eventMiddleware.validateEventData,
   eventController.add
@@ -18,6 +20,7 @@ router.post(
 router.put(
   "/:id",
   passport.authenticate("jwt", { session: false }),
+  uploadEventPhotos, 
   eventMiddleware.validateEventData,
   eventMiddleware.isEventOwner,
   eventController.updateById

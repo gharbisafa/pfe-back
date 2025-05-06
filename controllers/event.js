@@ -88,61 +88,55 @@ const getDeleted = async (req, res) => {
 
 const add = async (req, res) => {
   try {
-    console.log("entreing add event controller", req.data);
+    // req.data already prepared by setData middleware
     const result = await eventService.add(req.data);
-    console.log("result", result);
     res.status(201).json(result);
   } catch (error) {
     if (error instanceof DataValidationError) {
       return res.status(400).json({
-        error: "DATA_VALIDATION",
-        model: error.model.modelName,
-        fields: error.issues.map((issue) => ({
-          kind: issue.kind,
-          path: issue.path,
-          value: issue.value,
-          message: issue.message,
-        })),
+        error: "VALIDATION_ERROR",
+        details: error.issues.map(issue => ({
+          field: issue.path,
+          message: issue.message
+        }))
       });
     }
-    console.error(error);
-    res.sendStatus(500);
+    console.error("Event creation failed:", error);
+    res.status(500).json({ error: "EVENT_CREATION_FAILED" });
   }
 };
 
 const updateById = async (req, res) => {
   try {
-    const cleanData = castData(req.body, [
-      "title",
-      "description",
-      "type",
-      "location",
-      "startDate",
-      "endDate",
-      "visibility",
-    ]);
-    const result = await eventService.updateById(req.params.id, cleanData);
+    const updateData = {
+      ...req.body,
+      files: req.files
+    };
+
+    const result = await eventService.updateById(
+      req.params.id,
+      updateData,
+      req.user._id
+    );
     res.status(200).json(result);
   } catch (error) {
     if (error instanceof RecordNotFoundError) {
-      return res.status(404).json({ error: "NOT_FOUND" });
+      return res.status(404).json({ error: "EVENT_NOT_FOUND" });
     }
     if (error instanceof DataValidationError) {
       return res.status(400).json({
-        error: "DATA_VALIDATION",
-        model: error.model.modelName,
-        fields: error.issues.map((issue) => ({
-          kind: issue.kind,
-          path: issue.path,
-          value: issue.value,
-          message: issue.message,
-        })),
+        error: "VALIDATION_ERROR",
+        details: error.issues.map(issue => ({
+          field: issue.path,
+          message: issue.message
+        }))
       });
     }
-    console.error(error);
-    res.sendStatus(500);
+    console.error("Event update failed:", error);
+    res.status(500).json({ error: "EVENT_UPDATE_FAILED" });
   }
 };
+
 
 const deleteById = async (req, res) => {
   try {

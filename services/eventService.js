@@ -6,10 +6,89 @@ const { castData } = require("../utils/general");
 const { getPaginatedEvents } = require("./eventPaginationService");
 
 const ObjectId = mongoose.Types.ObjectId;
+const rsvpEnum = ["yes", "no", "maybe"];
+
 
 async function getFilteredEventsWithCount({ filters, sort = {}, page = 1, limit = 10 }) {
   return await getPaginatedEvents(filters, {}, page, limit, sort);
 }
+function validateGuests(guests, userIds = []) {
+  if (!Array.isArray(guests)) {
+    throw new Error("Guests must be an array");
+  }
+  const seenUsers = new Set();
+  return guests.map(guest => {
+    // Basic validation
+    if (typeof guest !== "object" || guest === null) {
+      throw new Error("Each guest must be an object");
+    }
+    // Validate user reference
+    if (!guest.user || !ObjectId.isValid(guest.user)) {
+      throw new Error("Invalid user ID in guest list");
+    }
+
+    const guestUserId = guest.user.toString();
+    
+    // Check for duplicates in this guest list
+    if (seenUsers.has(guestUserId)) {
+      throw new Error(`Duplicate guest user: ${guestUserId}`);
+    }
+    seenUsers.add(guestUserId);
+
+    // Check against additional user IDs (like creator)
+    if (userIds.includes(guestUserId)) {
+      throw new Error(`User ${guestUserId} cannot be both creator and guest`);
+    }
+
+    // Validate RSVP
+    if (guest.rsvp && !rsvpEnum.includes(guest.rsvp)) {
+      throw new Error(`Invalid RSVP status. Must be one of: ${rsvpEnum.join(", ")}`);
+    }
+
+    return {
+      user: new ObjectId(guest.user),
+      rsvp: guest.rsvp || "maybe"
+    };
+  });
+}
+function validateGallery(gallery, currentUserId) {
+  if (!Array.isArray(gallery)) {
+    throw new Error("Gallery must be an array");
+  }
+
+  return gallery.map(item => {
+    // Basic validation
+    if (typeof item !== "object" || item === null) {
+      throw new Error("Each gallery item must be an object");
+    }
+
+    // Validate uploader matches current user
+    if (!item.uploadedBy || !ObjectId.isValid(item.uploadedBy)) {
+      throw new Error("Gallery item requires valid uploadedBy ID");
+    }
+
+    if (item.uploadedBy.toString() !== currentUserId.toString()) {
+      throw new Error("Cannot add gallery items for other users");
+    }
+
+    // Validate media
+    if (!item.mediaUrl || typeof item.mediaUrl !== "string") {
+      throw new Error("Gallery item requires mediaUrl string");
+    }
+
+    if (!item.mediaType || !["photo", "video"].includes(item.mediaType)) {
+      throw new Error("Gallery mediaType must be 'photo' or 'video'");
+    }
+
+    return {
+      uploadedBy: new ObjectId(item.uploadedBy),
+      mediaUrl: item.mediaUrl,
+      mediaType: item.mediaType,
+      uploadedAt: item.uploadedAt || new Date()
+    };
+  });
+}
+
 
 const getById = async (_id) => {
   let event = await Event.findById(_id).lean().exec();
@@ -41,75 +120,83 @@ const getDeleted = async (filter = {}, projection = {}) => {
 };
 
 const add = async (data) => {
-  console.log(data);
-  data = castData(data, [
-    "title",
-    "description",
-    "location",
-    "startDate",
-    "endDate",
-    "startTime",      
-    "endTime", 
-    "price",
-    "bookingLink",
-    "type",
-    "visibility",
-    "createdBy",
-    "photos",      // <-- Optional
-    "guests",      // <-- Optional
-    "gallery",     // <-- Optional
-  ]);
-  if (!data) {
-    console.error("Invalid data after casting.");
-    return false;
-  }
-
   try {
-    const event = new Event(data);
-    console.log("Event created successfully:", event);
+    // Cast simple fields
+    const castedData = castData(data, [
+      "title", "description", "location",
+      "startDate", "endDate", "startTime", "endTime",
+      "price", "bookingLink", "type", "visibility", "createdBy"
+    ]);
+    if (!castedData) {
+      throw new DataValidationError(Event, [{
+        path: "root",
+        message: "Invalid event data structure"
+      }]);
+    }
+    // Handle guests with creator validation
+    if (data.guests) {
+      castedData.guests = validateGuests(data.guests, [data.createdBy.toString()]);
+    }
+// Handle photos (basic validation if needed)
+if (data.photos && Array.isArray(data.photos)) {
+  castedData.photos = data.photos;
+}
+
+    const event = new Event(castedData);
     await event.save();
     console.log("Event saved successfully:", event);
     return event;
   } catch (error) {
     if (error instanceof mongoose.Error.ValidationError) {
-      throw new DataValidationError(Event, error.errors);
-    } else {
-      throw error;
+      throw new DataValidationError(Event, Object.values(error.errors));
     }
+    throw error;
   }
 };
 
-const updateById = async (_id, data) => {
-  data = castData(data, [
-    "title",
-    "description",
-    "location",
-    "startDate",
-    "endDate",
-    "startTime",     
-    "endTime",  
-    "price",
-    "bookingLink",
-    "type",
-    "visibility",
-  ]);
-  if (!data) return false;
-
+const updateById = async (eventId, updateData, currentUserId) => {
   try {
-    const event = await Event.findOneAndUpdate({ _id }, data, {
-      new: true,
-      runValidators: true,
-    }).exec();
-    if (!event || event.deleted) throw new RecordNotFoundError(Event, _id);
-    return event;
+    // Cast simple fields
+    const castedData = castData(updateData, [
+      "title", "description", "location",
+      "startDate", "endDate", "startTime", "endTime",
+      "price", "bookingLink", "type", "visibility"
+    ]);
+
+    if (!castedData) {
+      throw new DataValidationError(Event, [{
+        path: "root",
+        message: "Invalid update data structure"
+      }]);
+    }
+
+    // Handle guests with additional validation
+    if (updateData.guests) {
+      const event = await Event.findById(eventId).lean();
+      if (!event) throw new RecordNotFoundError(Event, eventId);
+      
+      castedData.guests = validateGuests(updateData.guests, [
+        event.createdBy.toString(),
+        currentUserId.toString()
+      ]);
+    }
+
+    const updatedEvent = await Event.findOneAndUpdate(
+      { _id: eventId, deleted: { $ne: true } },
+      castedData,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedEvent) throw new RecordNotFoundError(Event, eventId);
+    return updatedEvent;
   } catch (error) {
     if (error instanceof mongoose.Error.ValidationError) {
-      throw new DataValidationError(Event, error.errors);
-    } else {
-      throw error;
+      throw new DataValidationError(Event, Object.values(error.errors));
     }
+    throw error;
   }
 };
+
 
 const deleteById = async (_id) => {
   let event = await Event.findById(_id).exec();
@@ -168,3 +255,4 @@ module.exports = {
   getFilteredEventsWithCount,
   toggleEventField
 };
+
