@@ -23,7 +23,7 @@ router.put(
 );
 
 router.delete(
-  "/",
+  "/:id",
   passport.authenticate("jwt", { session: false }),
   userAccountController.deleteSelf
 );
