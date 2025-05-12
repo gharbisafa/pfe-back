@@ -1,3 +1,4 @@
+// controllers/event.js
 const Event = require("../models/event");
 const eventService = require("../services/eventService");
 const DataValidationError = require("../errors/dataValidationError");
@@ -7,6 +8,11 @@ const { castData } = require("../utils/general");
 // GET: All public events with filtering, sorting, and pagination
 const get = async (req, res) => {
   try {
+    // 1) Parse & normalize pagination params
+    const page  = parseInt(req.query.page,  10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+
+    // 2) Destructure the rest of the filters
     const {
       type,
       location,
@@ -14,23 +20,20 @@ const get = async (req, res) => {
       endDate,
       sortBy,
       sortOrder = "asc",
-      page = 1,
-      limit = 10,
       search,
     } = req.query;
 
-    const filters = { visibility: "public" , deleted: false };
-
-    if (type) filters.type = type;
+    // 3) Build your Mongo filter
+    const filters = { visibility: "public", deleted: false };
+    if (type)    filters.type     = type;
     if (location) filters.location = { $regex: location, $options: "i" };
     if (search) {
       filters.$or = [
-        { title: { $regex: search, $options: "i" } },
+        { title:       { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
-        { location: { $regex: search, $options: "i" } },
+        { location:    { $regex: search, $options: "i" } },
       ];
     }
-
     if (startDate && endDate) {
       filters.startDate = {
         $gte: new Date(startDate),
@@ -38,22 +41,26 @@ const get = async (req, res) => {
       };
     }
 
+    // 4) Build sort object
     const sort = {};
     if (sortBy) sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
+    // 5) Fetch paginated data
     const { events, totalCount } = await eventService.getFilteredEventsWithCount({
       filters,
       sort,
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page,
+      limit,
     });
 
-    const totalPages = Math.ceil(totalCount / limit);
+    // 6) Calculate pagination metadata
+    const totalPages  = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
 
+    // 7) Send response
     res.status(200).json({
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page,
+      limit,
       totalCount,
       totalPages,
       hasNextPage,
@@ -88,7 +95,6 @@ const getDeleted = async (req, res) => {
 
 const add = async (req, res) => {
   try {
-    // req.data already prepared by setData middleware
     const result = await eventService.add(req.data);
     res.status(201).json(result);
   } catch (error) {
@@ -112,7 +118,6 @@ const updateById = async (req, res) => {
       ...req.body,
       files: req.files
     };
-
     const result = await eventService.updateById(
       req.params.id,
       updateData,
@@ -137,7 +142,6 @@ const updateById = async (req, res) => {
   }
 };
 
-
 const deleteById = async (req, res) => {
   try {
     const result = await eventService.deleteById(req.params.id);
@@ -158,7 +162,7 @@ const addRSVP = async (req, res) => {
   try {
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ error: "Event not found" });
-    const existing = event.guests.find((g) => g.user.toString() === userId);
+    const existing = event.guests.find(g => g.user.toString() === userId);
     if (existing) existing.rsvp = rsvp;
     else event.guests.push({ user: userId, rsvp });
     await event.save();
@@ -198,13 +202,12 @@ const addFeedback = async (req, res) => {
     res.status(500).json({ error: "FEEDBACK_FAILED" });
   }
 };
-//likes,going,interested
+
+// likes, going, interested
 const toggleField = async (req, res) => {
-  const { eventId } = req.params; // Changed from `id` to match route
+  const { eventId } = req.params;
   const { field } = req.body;
-
-  console.log("Toggling field:", { eventId, userId: req.user?._id, field }); // Debug
-
+  console.log("Toggling field:", { eventId, userId: req.user?._id, field });
   try {
     const updatedEvent = await eventService.toggleEventField(
       eventId,
@@ -220,7 +223,7 @@ const toggleField = async (req, res) => {
 
 const getMyEvents = async (req, res) => {
   try {
-    const events = await Event.find({ 
+    const events = await Event.find({
       createdBy: req.user._id,
       deleted: false
     });
@@ -241,7 +244,5 @@ module.exports = {
   addRSVP,
   addComment,
   addFeedback,
-  toggleField, 
+  toggleField,
 };
-
-

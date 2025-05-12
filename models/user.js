@@ -8,7 +8,7 @@ const userSchema = mongoose.Schema(
       required: true,
       validate: {
         validator: (name) => /^[\p{L}-]+(?:\s+[\p{L}-]+)*$/u.test(name),
-        message: "invalid_name",
+        message: "invalid_name",  
       },
     },
     phone: {
@@ -17,7 +17,7 @@ const userSchema = mongoose.Schema(
       validate: {
         validator: (phone) =>
           /^(((\\+[1-9]{1,4}[ \\-]*)|(\\([0-9]{2,3}\\)[ \\-]*)|([0-9]{2,4})[ \\-]*)*?[0-9]{3,4}?[ \\-]*[0-9]{3,4}?)?$/.test(
-            phone
+           phone
           ),
         message: "invalid_phone_number",
       },
