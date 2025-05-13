@@ -5,7 +5,7 @@ const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const { castData } = require("../utils/general");
 
-// GET: All public events with filtering, sorting, and pagination
+
 const get = async (req, res) => {
   try {
     // 1) Parse & normalize pagination params
@@ -20,12 +20,14 @@ const get = async (req, res) => {
       endDate,
       sortBy,
       sortOrder = "asc",
+      page = 1,
+      limit = 10,
       search,
     } = req.query;
 
-    // 3) Build your Mongo filter
-    const filters = { visibility: "public", deleted: false };
-    if (type)    filters.type     = type;
+    const filters = { visibility: "public" , deleted: false };
+
+    if (type) filters.type = type;
     if (location) filters.location = { $regex: location, $options: "i" };
     if (search) {
       filters.$or = [
@@ -45,7 +47,6 @@ const get = async (req, res) => {
     const sort = {};
     if (sortBy) sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
-    // 5) Fetch paginated data
     const { events, totalCount } = await eventService.getFilteredEventsWithCount({
       filters,
       sort,
@@ -53,21 +54,20 @@ const get = async (req, res) => {
       limit,
     });
 
-    // 6) Calculate pagination metadata
-    const totalPages  = Math.ceil(totalCount / limit);
+    const totalPages = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
 
     // 7) Send response
     res.status(200).json({
-      page,
-      limit,
+      page: parseInt(page),
+      limit: parseInt(limit),
       totalCount,
       totalPages,
       hasNextPage,
       events,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching events:", error);
     res.status(500).json({ error: "FETCH_FAILED" });
   }
 };
