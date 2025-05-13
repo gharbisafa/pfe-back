@@ -9,6 +9,9 @@ const ObjectId = mongoose.Types.ObjectId;
 const rsvpEnum = ["yes", "no", "maybe"];
 
 
+// async function getFilteredEventsWithCount({ filters, sort = {}, page = 1, limit = 10 }) {
+//   return await getPaginatedEvents(filters, {}, page, limit, sort);
+// }
 async function getFilteredEventsWithCount({ filters, sort = {}, page = 1, limit = 10 }) {
   return await getPaginatedEvents(filters, {}, page, limit, sort);
 }
@@ -51,44 +54,6 @@ function validateGuests(guests, userIds = []) {
     };
   });
 }
-// function validateGallery(gallery, currentUserId) {
-//   if (!Array.isArray(gallery)) {
-//     throw new Error("Gallery must be an array");
-//   }
-
-//   return gallery.map(item => {
-//     // Basic validation
-//     if (typeof item !== "object" || item === null) {
-//       throw new Error("Each gallery item must be an object");
-//     }
-
-//     // Validate uploader matches current user
-//     if (!item.uploadedBy || !ObjectId.isValid(item.uploadedBy)) {
-//       throw new Error("Gallery item requires valid uploadedBy ID");
-//     }
-
-//     if (item.uploadedBy.toString() !== currentUserId.toString()) {
-//       throw new Error("Cannot add gallery items for other users");
-//     }
-
-//     // Validate media
-//     if (!item.mediaUrl || typeof item.mediaUrl !== "string") {
-//       throw new Error("Gallery item requires mediaUrl string");
-//     }
-
-//     if (!item.mediaType || !["photo", "video"].includes(item.mediaType)) {
-//       throw new Error("Gallery mediaType must be 'photo' or 'video'");
-//     }
-
-//     return {
-//       uploadedBy: new ObjectId(item.uploadedBy),
-//       mediaUrl: item.mediaUrl,
-//       mediaType: item.mediaType,
-//       uploadedAt: item.uploadedAt || new Date()
-//     };
-//   });
-// }
-
 
 const getById = async (_id) => {
   let event = await Event.findById(_id).lean().exec();
