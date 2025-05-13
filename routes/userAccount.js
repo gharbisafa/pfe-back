@@ -6,6 +6,7 @@ const passport = require("passport");
 
 const { uploadProfileImage } = require("../middlewares/upload");
 
+// Upload profile image
 router.put(
   "/profile-image",
   passport.authenticate("jwt", { session: false }),
@@ -13,8 +14,10 @@ router.put(
   userAccountController.uploadProfileImage
 );
 
+// Create user
 router.post("/", middlewares.setData, userAccountController.post);
 
+// Update own user
 router.put(
   "/:id",
   passport.authenticate("jwt", { session: false }),
@@ -22,13 +25,45 @@ router.put(
   userAccountController.putSelf
 );
 
+// Delete own user
 router.delete(
   "/:id",
   passport.authenticate("jwt", { session: false }),
   userAccountController.deleteSelf
 );
 
+// Toggle follow/unfollow another user
+router.post(
+  "/follow/:id",
+  passport.authenticate("jwt", { session: false }),
+  userAccountController.toggleFollow
+);
 
+// ✅ Get followers & following list
+router.get(
+  "/:id/follow-stats",
+  passport.authenticate("jwt", { session: false }),
+  userAccountController.getFollowStats
+);
+// ✅ Get full followers list
+router.get(
+  "/:id/followers",
+  passport.authenticate("jwt", { session: false }),
+  userAccountController.getFollowers
+);
+
+// ✅ Get full following list
+router.get(
+  "/:id/following",
+  passport.authenticate("jwt", { session: false }),
+  userAccountController.getFollowing
+);
+// ✅ Get user by ID
+router.get(
+  "/:id",
+  passport.authenticate("jwt", { session: false }),
+  userAccountController.getUserById
+);
 
 
 module.exports = router;

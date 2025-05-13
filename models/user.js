@@ -17,20 +17,36 @@ const userSchema = mongoose.Schema(
       validate: {
         validator: (phone) =>
           /^(((\\+[1-9]{1,4}[ \\-]*)|(\\([0-9]{2,3}\\)[ \\-]*)|([0-9]{2,4})[ \\-]*)*?[0-9]{3,4}?[ \\-]*[0-9]{3,4}?)?$/.test(
-           phone
+            phone
           ),
         message: "invalid_phone_number",
       },
     },
     profileImage: {
       type: String, // Path or full URL to the image
-      default: "",  // Optional default or null if none uploaded yet
+      default: "",
     },
+    // 🔒 Device Token (for push notifications)
+    deviceToken: {
+      type: String,
+      default: null, // null if no token assigned yet
+    },
+    // 🧑‍🤝‍🧑 Followers: Users who follow this user
+    followers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }],
+    // ➕ Following: Users this user is following
+    following: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }],
   },
   {
     timestamps: { createdAt: true, updatedAt: true },
   }
 );
+
 userSchema.plugin(uniqueValidator);
 
 module.exports = mongoose.model("User", userSchema);

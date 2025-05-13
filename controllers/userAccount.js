@@ -2,6 +2,7 @@ const userAccountService = require("../services/userAccountService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 
+
 const get = async (req, res) => {
   try {
     let result = await userAccountService.get({}, { password: 0, deleted: 0 });
@@ -141,11 +142,78 @@ const uploadProfileImage = async (req, res) => {
     res.sendStatus(500);
   }
 };
+const toggleFollow = async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    const currentUserId = req.user._id.toString();
+
+    if (targetUserId === currentUserId) {
+      return res.status(400).json({ error: "CANNOT_FOLLOW_SELF" });
+    }
+
+    const result = await userAccountService.toggleFollow(currentUserId, targetUserId);
+    res.status(200).json({ message: result.message });
+  } catch (error) {
+    console.error(error);
+    res.sendStatus(500);
+  }
+};
+const getFollowStats = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const stats = await userAccountService.getFollowStats(userId);
+    res.status(200).json(stats);
+  } catch (error) {
+    console.error(error);
+    res.sendStatus(500);
+  }
+};
+
+// Get followers of a user by ID
+const getFollowers = async (req, res) => {
+  try {
+    const followers = await userAccountService.getFollowers(req.params.id);
+    return res.status(200).json(followers);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Error fetching followers" });
+  }
+};
+
+// Get following of a user by ID
+const getFollowing = async (req, res) => {
+  try {
+    const following = await userAccountService.getFollowing(req.params.id);
+    return res.status(200).json(following);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Error fetching following" });
+  }
+};
+
+// Get user by ID
+const getUserById = async (req, res) => {
+  try {
+    const user = await userAccountService.getById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    return res.status(200).json(user);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Error fetching user data" });
+  }
+};
 
 
 
 
 module.exports = {
+  getFollowStats,
+  getFollowers,
+  getFollowing,
+  getUserById,
+  toggleFollow,
   uploadProfileImage,
   get,
   getDeleted,

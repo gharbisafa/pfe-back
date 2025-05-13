@@ -6,6 +6,21 @@ const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const { castData } = require("../utils/general");
 
+const toggleFollow = async (currentUserAccountId, targetUserAccountId) => {
+  const currentUserAccount = await UserAccount.findById(currentUserAccountId);
+  const targetUserAccount = await UserAccount.findById(targetUserAccountId);
+
+  if (!currentUserAccount || !targetUserAccount || currentUserAccount.deleted || targetUserAccount.deleted) {
+    throw new RecordNotFoundError(UserAccount, targetUserAccountId);
+  }
+
+  return await userService.toggleFollow(
+    currentUserAccount.userInfo.toString(),
+    targetUserAccount.userInfo.toString()
+  );
+};
+
+
 
 const getById = async (_id) => {
   let userAccount = await UserAccount.findById(_id)
@@ -159,10 +174,59 @@ const updateProfileImage = async (userAccountId, imagePath) => {
   const updatedUser = await userService.updateProfileImage(userAccount.userInfo, imagePath);
   return updatedUser;
 };
+// Get followers list of a user
+const getFollowers = async (_id) => {
+  // Find the user account by ID and populate the followers
+  const userAccount = await UserAccount.findById(_id).populate({
+    path: "userInfo",
+    select: "followers", // Include the followers array
+  }).lean();
 
+  if (!userAccount || !userAccount.userInfo) {
+    throw new RecordNotFoundError(UserAccount, _id);
+  }
+
+  const followers = await userService.get({ "_id": { $in: userAccount.userInfo.followers } });
+  return followers;
+};
+// Get following list of a user
+const getFollowing = async (_id) => {
+  // Find the user account by ID and populate the following list
+  const userAccount = await UserAccount.findById(_id).populate({
+    path: "userInfo",
+    select: "following", // Include the following array
+  }).lean();
+
+  if (!userAccount || !userAccount.userInfo) {
+    throw new RecordNotFoundError(UserAccount, _id);
+  }
+
+  const following = await userService.get({ "_id": { $in: userAccount.userInfo.following } });
+  return following;
+};
+const getFollowStats = async (userAccountId) => {
+  const userAccount = await UserAccount.findById(userAccountId)
+    .populate("userInfo")
+    .exec();
+
+  if (!userAccount || userAccount.deleted) {
+    throw new RecordNotFoundError(UserAccount, userAccountId);
+  }
+
+  const user = userAccount.userInfo;
+
+  return {
+    followersCount: user.followers?.length || 0,
+    followingCount: user.following?.length || 0,
+  };
+};
 
 
 module.exports = {
+  getFollowStats,
+  getFollowers,
+  getFollowing,
+  toggleFollow,
   updateProfileImage,
   getById,
   get,

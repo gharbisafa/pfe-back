@@ -4,6 +4,34 @@ const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const { castData } = require("../utils/general");
 
+const toggleFollow = async (currentUserId, targetUserId) => {
+  const currentUser = await User.findById(currentUserId);
+  const targetUser = await User.findById(targetUserId);
+
+  if (!currentUser || !targetUser || currentUser.deleted || targetUser.deleted) {
+    throw new RecordNotFoundError(User, targetUserId);
+  }
+
+  const isFollowing = currentUser.following.includes(targetUserId);
+
+  if (isFollowing) {
+    // Unfollow
+    currentUser.following.pull(targetUserId);
+    targetUser.followers.pull(currentUserId);
+    await currentUser.save();
+    await targetUser.save();
+    return { message: "UNFOLLOWED" };
+  } else {
+    // Follow
+    currentUser.following.push(targetUserId);
+    targetUser.followers.push(currentUserId);
+    await currentUser.save();
+    await targetUser.save();
+    return { message: "FOLLOWED" };
+  }
+};
+
+
 const getById = async (_id) => {
   let user = await User.findById(_id).lean().exec();
   if (!user) {
@@ -71,4 +99,4 @@ const updateProfileImage = async (userId, imagePath) => {
   return await user.save();
 };
 
-module.exports = { updateProfileImage, getById, get, add, updateById };
+module.exports = { toggleFollow, updateProfileImage, getById, get, add, updateById };
