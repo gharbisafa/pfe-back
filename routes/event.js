@@ -6,6 +6,12 @@ const eventMiddleware = require("../middlewares/event");
 
 const { uploadEventPhotos } = require("../middlewares/upload"); // Import the multer upload configuration
 
+
+router.get("/interested", passport.authenticate("jwt", { session: false }), eventController.getInterestedEvents);
+router.get("/going", passport.authenticate("jwt", { session: false }), eventController.getGoingEvents);
+router.get("/liked", passport.authenticate("jwt", { session: false }), eventController.getLikedEvents);
+router.get("/media", passport.authenticate("jwt", { session: false }), eventController.getUserEventMedia);
+
 // CREATE: Add a new event
 router.post(
   "/",
@@ -55,12 +61,7 @@ router.get(
   eventController.getById
 );
 
-// GET DELETED EVENTS (optional route, useful for admin panels)
-router.get(
-  "/deleted/list",
-  passport.authenticate("jwt", { session: false }),
-  eventController.getDeleted
-);
+
 // RSVP
 router.post(
   "/:eventId/rsvp",

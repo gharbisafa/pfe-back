@@ -61,7 +61,7 @@
       },
       createdBy: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        ref: "UserAccount", // Update to reference UserAccount
         required: true,
       },
       price: {
@@ -79,7 +79,7 @@
           message: "Invalid booking link URL",
         },
       },
-      deleted: { type: Boolean, default: false },
+      
       guests: {
         type: [
           {
@@ -190,6 +190,8 @@
           },
         },
       ],
+      deleted: { type: Boolean, default: false },
+      archive: { type: Boolean, default: false },
     },
     {
       timestamps: { createdAt: true, updatedAt: true },

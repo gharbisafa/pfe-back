@@ -2,9 +2,16 @@ const express = require("express");
 const router = express.Router();
 const middlewares = require("../middlewares/userAccount");
 const userAccountController = require("../controllers/userAccount");
+const dashboardController = require("../controllers/dashboard");
 const passport = require("passport");
-
 const { uploadProfileImage } = require("../middlewares/upload");
+
+// ✅ User activity dashboard route
+router.get(
+  "/dashboard",
+  passport.authenticate("jwt", { session: false }),
+  dashboardController.getUserDashboard
+);
 
 // Upload profile image
 router.put(
@@ -45,6 +52,7 @@ router.get(
   passport.authenticate("jwt", { session: false }),
   userAccountController.getFollowStats
 );
+
 // ✅ Get full followers list
 router.get(
   "/:id/followers",
@@ -58,12 +66,14 @@ router.get(
   passport.authenticate("jwt", { session: false }),
   userAccountController.getFollowing
 );
+
 // ✅ Get user by ID
 router.get(
   "/:id",
   passport.authenticate("jwt", { session: false }),
   userAccountController.getUserById
 );
+
 
 
 module.exports = router;
