@@ -101,6 +101,34 @@ const cancelReservation = async (reservationId, userId, userName) => {
   return { message: "Reservation canceled successfully." };
 };
 
+const cancelUserReservation = async (reservationId, userId) => {
+  const reservation = await Reservation.findOne({ _id: reservationId, user: userId });
+  if (!reservation) {
+    throw new Error("Reservation not found or not authorized.");
+  }
+
+  // Mark the reservation as canceled
+  reservation.status = "canceled";
+  await reservation.save();
+
+  // Notify the event creator about the cancellation
+  const event = await Event.findById(reservation.event);
+  if (!event) {
+    throw new Error("Event not found.");
+  }
+
+  const message = `A reservation for your event "${event.title}" has been canceled by a user.`;
+  await notificationService.createNotification({
+    user: event.createdBy, // Notify the creator of the event
+    type: "reservation_cancellation",
+    message,
+    event: reservation.event,
+  });
+
+  return { message: "Reservation canceled successfully." };
+};
+
+
 // Get reservations for an event
 const getReservations = async (eventId, userId, isAdmin) => {
   const event = await Event.findById(eventId);
@@ -115,6 +143,16 @@ const getReservations = async (eventId, userId, isAdmin) => {
 
   const reservations = await Reservation.find({ event: eventId }).populate("user", "name email");
   return reservations.length > 0 ? reservations : [];
+};
+
+// Get reservations made by the authenticated user
+const getUserReservations = async (userId) => {
+  const reservations = await Reservation.find({ user: userId }).populate("event", "title date");
+  if (!reservations || reservations.length === 0) {
+    throw new Error("No reservations found for this user.");
+  }
+
+  return reservations;
 };
 
 // Respond to a reservation
@@ -152,6 +190,9 @@ module.exports = {
   makeReservation,
   updateReservation,
   cancelReservation,
+  cancelUserReservation,
   getReservations,
+  getUserReservations,
   respondToReservation,
 };
+

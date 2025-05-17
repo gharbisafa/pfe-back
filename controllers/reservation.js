@@ -55,6 +55,22 @@ const cancelReservation = async (req, res) => {
   }
 };
 
+// Cancel a reservation as the user who made it
+const cancelUserReservation = async (req, res) => {
+  const { reservationId } = req.params;
+
+  try {
+    const result = await reservationService.cancelUserReservation(
+      reservationId,
+      req.user._id
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error canceling user reservation:", error);
+    res.status(500).json({ error: error.message || "CANCELLATION_FAILED" });
+  }
+};
+
 // Get reservations for a specific event
 const getReservations = async (req, res) => {
   const { eventId } = req.params;
@@ -68,6 +84,17 @@ const getReservations = async (req, res) => {
     res.status(200).json(reservations);
   } catch (error) {
     console.error("Error fetching reservations:", error);
+    res.status(500).json({ error: error.message || "FAILED_TO_FETCH_RESERVATIONS" });
+  }
+};
+
+// Get reservations made by the authenticated user
+const getUserReservations = async (req, res) => {
+  try {
+    const reservations = await reservationService.getUserReservations(req.user._id);
+    res.status(200).json(reservations);
+  } catch (error) {
+    console.error("Error fetching user reservations:", error);
     res.status(500).json({ error: error.message || "FAILED_TO_FETCH_RESERVATIONS" });
   }
 };
@@ -94,6 +121,9 @@ module.exports = {
   makeReservation,
   updateReservation,
   cancelReservation,
+  cancelUserReservation,
   getReservations,
+  getUserReservations,
   respondToReservation,
 };
+

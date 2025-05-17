@@ -4,8 +4,7 @@ const passport = require("passport");
 const eventController = require("../controllers/event");
 const eventMiddleware = require("../middlewares/event");
 
-const { uploadEventPhotos } = require("../middlewares/upload"); // Import the multer upload configuration
-
+const { uploadEventPhotos } = require("../middlewares/upload");
 
 router.get("/interested", passport.authenticate("jwt", { session: false }), eventController.getInterestedEvents);
 router.get("/going", passport.authenticate("jwt", { session: false }), eventController.getGoingEvents);
@@ -62,13 +61,6 @@ router.get(
 );
 
 
-// RSVP
-router.post(
-  "/:eventId/rsvp",
-  passport.authenticate("jwt", { session: false }),
-  eventController.addRSVP
-);
-
 // Comments
 router.post(
   "/:eventId/comment",
@@ -82,12 +74,39 @@ router.post(
   passport.authenticate("jwt", { session: false }),
   eventController.addFeedback
 );
-// Toggle likes, going, interested
+// Likes
 router.post(
-  "/:eventId/toggle",
+  "/:eventId/like",
   passport.authenticate("jwt", { session: false }),
-  eventMiddleware.setUserId,
-  eventController.toggleField
+  eventController.toggleLike
 );
+
+// Going
+router.post(
+  "/:eventId/going",
+  passport.authenticate("jwt", { session: false }),
+  eventController.toggleGoing
+);
+
+// Interested
+router.post(
+  "/:eventId/interested",
+  passport.authenticate("jwt", { session: false }),
+  eventController.toggleInterested
+);
+// Archive/Unarchive Event
+router.put(
+  "/:eventId/archive",
+  passport.authenticate("jwt", { session: false }),
+  eventMiddleware.isEventOwner, // Ensure only the event creator can toggle archive
+  eventController.toggleArchive
+);
+// // Toggle likes, going, interested
+// router.post(
+//   "/:eventId/toggle",
+//   passport.authenticate("jwt", { session: false }),
+//   eventMiddleware.setUserId,
+//   eventController.toggleField
+// );
 
 module.exports = router;

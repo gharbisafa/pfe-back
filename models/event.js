@@ -191,7 +191,7 @@
         },
       ],
       deleted: { type: Boolean, default: false },
-      archive: { type: Boolean, default: false },
+      isArchived: { type: Boolean, default: false },
     },
     {
       timestamps: { createdAt: true, updatedAt: true },

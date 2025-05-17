@@ -231,173 +231,6 @@ const updateById = async (eventId, updateData, currentUserId) => {
     throw error;
   }
 };
-     // Fetch the existing event to validate and merge data
-//     const event = await Event.findById(eventId);
-//     if (!event || event.deleted) {
-//       throw new RecordNotFoundError(Event, eventId);
-//     }
-
-//     // Cast and validate simple fields
-//     const castedData = castData(updateData, [
-//       "title", "description", "location",
-//       "startDate", "endDate", "startTime", "endTime",
-//       "price", "bookingLink", "type", "visibility"
-//     ]);
-
-//     // Merge the casted data with the existing event
-//     Object.assign(event, castedData);
-
-//     // Handle `guests` field if provided
-//     if (updateData.guests) {
-//       let guests = updateData.guests;
-
-//       // Parse guests from JSON string if it's sent as a string
-//       if (typeof guests === "string") {
-//         try {
-//           guests = JSON.parse(guests);
-//         } catch {
-//           throw new Error("Invalid guests format. Must be a JSON array.");
-//         }
-//       }
-
-//       // Validate and assign guests
-//       event.guests = validateGuests(guests, [
-//         event.createdBy.toString(),
-//         currentUserId.toString()
-//       ]);
-//     }
-
-//     // Handle `photos` field if provided
-//     if (updateData.photos) {
-//       event.photos = updateData.photos; // Replace existing photos with the new array
-//     }
-
-//     // Save the updated event
-//     await event.save();
-
-//     return event;
-//   } catch (error) {
-//     console.error("Error updating event:", error);
-//     throw error;
-//   }
-// };
-// const updateById = async (eventId, updateData, currentUserId) => {
-//   try {
-//     // Cast simple fields
-//     const castedData = castData(updateData, [
-//       "title", "description", "location",
-//       "startDate", "endDate", "startTime", "endTime",
-//       "price", "bookingLink", "type", "visibility"
-//     ]);
-
-//     if (!castedData) {
-//       throw new DataValidationError(Event, [{
-//         path: "root",
-//         message: "Invalid update data structure"
-//       }]);
-//     }
-
-//     // Parse guests from string if needed
-//     if (updateData.guests) {
-//       if (typeof updateData.guests === "string") {
-//         try {
-//           updateData.guests = JSON.parse(updateData.guests);
-//         } catch {
-//           throw new DataValidationError(Event, [{
-//             path: "guests",
-//             message: "Invalid guests format. Must be a JSON array."
-//           }]);
-//         }
-//       }
-
-//       const event = await Event.findById(eventId).lean();
-//       if (!event) throw new RecordNotFoundError(Event, eventId);
-
-//       castedData.guests = validateGuests(updateData.guests, [
-//         event.createdBy.toString(),
-//         currentUserId.toString()
-//       ]);
-//     }
-
-//     // Add support for updating photos
-//     if (updateData.photos) {
-//       castedData.photos = updateData.photos;
-//     }
-
-//     const updatedEvent = await Event.findOneAndUpdate(
-//       { _id: eventId, deleted: { $ne: true } },
-//       castedData,
-//       { new: true, runValidators: true }
-//     );
-
-//     if (!updatedEvent) throw new RecordNotFoundError(Event, eventId);
-//     return updatedEvent;
-    
-//   } catch (error) {
-//     if (error instanceof mongoose.Error.ValidationError) {
-//       throw new DataValidationError(Event, Object.values(error.errors));
-//     }
-//     throw error;
-//   }
-// };
-// const updateById = async (eventId, updateData, currentUserId) => {
-//   try {
-//     console.log("Update request received for event:", eventId);//debugging
-//     console.log("Update data:", updateData);//debugging
-//     // Fetch the existing event
-//     const event = await Event.findById(eventId);
-//     if (!event || event.deleted) throw new RecordNotFoundError(Event, eventId);
-
-//     // Cast and validate simple fields
-//     const castedData = castData(updateData, [
-//       "title", "description", "location",
-//       "startDate", "endDate", "startTime", "endTime",
-//       "price", "bookingLink", "type", "visibility"
-//     ]);
-
-//     // Merge the casted data with the existing event
-//     if (castedData) {
-//       Object.assign(event, castedData);
-//     }
-
-//     // Handle guests if included in the update
-//     if (updateData.guests) {
-//       if (typeof updateData.guests === "string") {
-//         try {
-//           updateData.guests = JSON.parse(updateData.guests);
-//         } catch {
-//           throw new DataValidationError(Event, [{
-//             path: "guests",
-//             message: "Invalid guests format. Must be a JSON array."
-//           }]);
-//         }
-//       }
-
-//       // Validate the guests
-//       event.guests = validateGuests(updateData.guests, [
-//         event.createdBy.toString(),
-//         currentUserId.toString()
-//       ]);
-//     }
-
-//     // Handle photos if included in the update
-//     if (updateData.photos) {
-//       event.photos = updateData.photos;
-//     }
-
-//     // Save the updated event
-//     await event.save();
-
-//     return event;
-//   } catch (error) {
-//     console.error("Error updating event:", error);//debugging
-//     if (error instanceof mongoose.Error.ValidationError) {
-//       throw new DataValidationError(Event, Object.values(error.errors));
-//     }
-//     throw error;
-//   }
-// };
-
 const deleteById = async (_id) => {
   let event = await Event.findById(_id).exec();
   if (!event) throw new RecordNotFoundError(Event, _id);
@@ -413,9 +246,6 @@ const deleteById = async (_id) => {
 //likes,going,interested
 
 const toggleEventField = async (eventId, userId, field) => {
-  console.log("Raw eventId:", eventId);
-  console.log("Type of eventId:", typeof eventId);
-  console.log("Is valid ObjectId:", ObjectId.isValid(eventId));
 
   const validFields = ["likes", "going", "interested"];
   if (!validFields.includes(field)) {
@@ -443,6 +273,24 @@ const toggleEventField = async (eventId, userId, field) => {
   await event.save();
   return event;
 };
+const toggleEventArchive = async (eventId, userId) => {
+  const event = await Event.findById(eventId);
+  if (!event) {
+    throw new Error("Event not found");
+  }
+
+  // Ensure the user is the event creator
+  if (event.createdBy.toString() !== userId.toString()) {
+    throw new Error("You are not authorized to archive or unarchive this event.");
+  }
+
+  // Toggle the archive status
+  event.isArchived = !event.isArchived;
+  await event.save();
+
+  return event;
+};
+
 
 
 module.exports = {
@@ -454,6 +302,7 @@ module.exports = {
   updateById,
   deleteById,
   getFilteredEventsWithCount,
-  toggleEventField
+  toggleEventField,
+  toggleEventArchive,
 };
 

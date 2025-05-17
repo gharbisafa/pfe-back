@@ -2,14 +2,10 @@ const Event = require("../models/event");
 const eventService = require("../services/eventService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
-const { castData } = require("../utils/general");
-const mongoose = require("mongoose");
-
 const notificationService = require("../services/notificationService");
-const Reservation = require("../models/reservation");
 
 
-
+ 
 const get = async (req, res) => {
   try {
     const {
@@ -125,28 +121,6 @@ const updateById = async (req, res) => {
     res.status(500).json({ error: "EVENT_UPDATE_FAILED" });
   }
 };
-// Update Event
-// const updateById = async (req, res) => {
-//   try {
-//     const event = await eventService.updateById(req.params.id, req.body, req.user._id);
-
-//     // Notify new guests only
-//     const existingEvent = await Event.findById(req.params.id).lean();
-//     const existingGuestIds = existingEvent.guests.map((g) => g.user.toString());
-//     const newGuests = req.body.guests.filter(
-//       (g) => !existingGuestIds.includes(g.user.toString())
-//     );
-
-//     if (newGuests.length) {
-//       await notifyGuests(event, newGuests);
-//     }
-
-//     res.status(200).json(event);
-//   } catch (error) {
-//     console.error("Event update failed:", error);
-//     res.status(500).json({ error: "EVENT_UPDATE_FAILED" });
-//   }
-// };
 
 
 const deleteById = async (req, res) => {
@@ -160,38 +134,6 @@ const deleteById = async (req, res) => {
     }
     console.error(error);
     res.sendStatus(500);
-  }
-};
-
-const addRSVP = async (req, res) => {
-  const { eventId } = req.params;
-  const { rsvp } = req.body;
-  try {
-    const event = await Event.findById(eventId).populate("createdBy guests.user");
-    if (!event) return res.status(404).json({ error: "Event not found" });
-
-    // Update RSVP for the guest
-    const existingGuest = event.guests.find((g) => g.user._id.equals(req.user._id));
-    if (existingGuest) {
-      existingGuest.rsvp = rsvp;
-    } else {
-      return res.status(400).json({ error: "You are not a guest for this event" });
-    }
-    await event.save();
-
-    // Notify the event creator
-    const message = `${req.user.name} responded to the invitation with "${rsvp}"`;
-    await notificationService.createNotification(
-      event.createdBy._id,
-      "guest_response",
-      message,
-      event._id
-    );
-
-    res.status(200).json(event);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "RSVP_FAILED" });
   }
 };
 
@@ -225,24 +167,72 @@ const addFeedback = async (req, res) => {
   }
 };
 //likes,going,interested
-const toggleField = async (req, res) => {
-  const { eventId } = req.params; // Changed from `id` to match route
-  const { field } = req.body;
+// const toggleField = async (req, res) => {
+//   const { eventId } = req.params; // Changed from `id` to match route
+//   const { field } = req.body;
 
-  console.log("Toggling field:", { eventId, userId: req.user?._id, field }); // Debug
+//   console.log("Toggling field:", { eventId, userId: req.user?._id, field }); // Debug
+
+//   try {
+//     const updatedEvent = await eventService.toggleEventField(
+//       eventId,
+//       req.user._id,
+//       field
+//     );
+//     res.status(200).json(updatedEvent);
+//   } catch (error) {
+//     console.error("Error toggling field:", error);
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+const toggleLike = async (req, res) => {
+  const { eventId } = req.params;
 
   try {
     const updatedEvent = await eventService.toggleEventField(
       eventId,
       req.user._id,
-      field
+      "likes" // Explicitly toggle "likes"
     );
     res.status(200).json(updatedEvent);
   } catch (error) {
-    console.error("Error toggling field:", error);
+    console.error("Error toggling like:", error);
     res.status(500).json({ message: error.message });
   }
 };
+
+const toggleGoing = async (req, res) => {
+  const { eventId } = req.params;
+
+  try {
+    const updatedEvent = await eventService.toggleEventField(
+      eventId,
+      req.user._id,
+      "going" // Explicitly toggle "going"
+    );
+    res.status(200).json(updatedEvent);
+  } catch (error) {
+    console.error("Error toggling going:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const toggleInterested = async (req, res) => {
+  const { eventId } = req.params;
+
+  try {
+    const updatedEvent = await eventService.toggleEventField(
+      eventId,
+      req.user._id,
+      "interested" // Explicitly toggle "interested"
+    );
+    res.status(200).json(updatedEvent);
+  } catch (error) {
+    console.error("Error toggling interested:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
 const getMyEvents = async (req, res) => {
   try {
@@ -325,14 +315,21 @@ const notifyGuests = async (event, guests) => {
     throw new Error("NOTIFICATION_CREATION_FAILED");
   }
 };
-// Event Creation/Update Function to Notify Guests
-// const notifyGuests = async (event, newGuests) => {
-//   const notifications = newGuests.map((guest) => {
-//     const message = `You've been invited to the event "${event.title}"`;
-//     return notificationService.createNotification(guest.user, "guest_invitation", message, event._id);
-//   });
-//   await Promise.all(notifications);
-// };
+const toggleArchive = async (req, res) => {
+  const { eventId } = req.params;
+
+  try {
+    const updatedEvent = await eventService.toggleEventArchive(eventId, req.user._id);
+    res.status(200).json({
+      message: `Event ${updatedEvent.isArchived ? "archived" : "unarchived"} successfully.`,
+      event: updatedEvent,
+    });
+  } catch (error) {
+    console.error("Error toggling archive status:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
 module.exports = {
   getInterestedEvents,
@@ -345,10 +342,12 @@ module.exports = {
   add,
   updateById,
   deleteById,
-  addRSVP,
   addComment,
   addFeedback,
-  toggleField, 
+  toggleLike,
+  toggleGoing,
+  toggleInterested,
+  toggleArchive,
 };
 
 

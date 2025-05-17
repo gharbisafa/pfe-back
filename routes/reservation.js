@@ -28,10 +28,25 @@ router.put(
   reservationController.respondToReservation
 );
 
+// Get all reservations for an event
 router.get(
   "/:eventId",
   passport.authenticate("jwt", { session: false }),
   reservationController.getReservations
+);
+
+// Cancel a reservation made by the authenticated user
+router.delete(
+  "/user/cancel/:reservationId",
+  passport.authenticate("jwt", { session: false }),
+  reservationController.cancelUserReservation
+);
+
+// Get reservations made by the authenticated user
+router.get(
+  "/user/mine",
+  passport.authenticate("jwt", { session: false }),
+  reservationController.getUserReservations
 );
 
 module.exports = router;
