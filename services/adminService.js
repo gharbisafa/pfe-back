@@ -1,77 +1,120 @@
-const Event = require("../models/event");
-const EventMedia = require("../models/eventMedia");
-const User = require("../models/user");
+// services/adminService.js
+
+const Event       = require("../models/event");
+const EventMedia  = require("../models/eventMedia");
+const User        = require("../models/user");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
-const { ObjectId } = require("mongoose").Types;
+const DataValidationError = require("../errors/dataValidationError");
+const { Types: { ObjectId } } = require("mongoose");
 
-const getUsers = async (filters) => {
-  return await User.find(filters).lean();
-};
+// ——— Users ———————————————————————————————————————————————————————
 
-const updateUserRole = async (userId, role) => {
-  const updatedUser = await User.findByIdAndUpdate(userId, { role }, { new: true });
-  if (!updatedUser) throw new RecordNotFoundError("User not found");
-  return updatedUser;
-};
+/** GET `/api/admin/users` → UserRecord[] */
+async function getUsers(filters = {}) {
+  return User.find(filters).lean();
+}
 
-const softDeleteUser = async (userId) => {
-  const user = await User.findByIdAndUpdate(userId, { deleted: true });
-  if (!user) throw new RecordNotFoundError("User not found");
-};
+/** PUT `/api/admin/users/:id` body `{ role }` → updated UserRecord */
+async function updateUserRole(userId, role) {
+  const u = await User.findByIdAndUpdate(userId, { role }, { new: true });
+  if (!u) throw new RecordNotFoundError("User not found");
+  return u;
+}
 
-const banEvent = async (eventId) => {
-  try {
-    // Validate ObjectId
-    if (!ObjectId.isValid(eventId)) {
-      throw new DataValidationError("Invalid Event ID");
-    }
+/** DELETE `/api/admin/users/:id` soft-delete */
+async function softDeleteUser(userId) {
+  const u = await User.findByIdAndUpdate(userId, { deleted: true }, { new: true });
+  if (!u) throw new RecordNotFoundError("User not found");
+}
 
-    const event = await Event.findByIdAndUpdate(eventId, { banned: true });
-    if (!event) throw new RecordNotFoundError("Event not found");
-  } catch (error) {
-    console.error("Error banning event:", error.message);
-    throw error; // Propagate the error
+/** (Example) PUT `/api/admin/events/:id/ban` */
+async function banEvent(eventId) {
+  if (!ObjectId.isValid(eventId)) {
+    throw new DataValidationError("Invalid Event ID");
   }
-};
+  const ev = await Event.findByIdAndUpdate(eventId, { banned: true }, { new: true });
+  if (!ev) throw new RecordNotFoundError("Event not found");
+}
 
-const getDeletedMedia = async () => {
-  return await EventMedia.find({ deleted: true }).lean();
-};
+// ——— Events ——————————————————————————————————————————————————————
 
-const restoreMedia = async (mediaId) => {
-  const media = await EventMedia.findByIdAndUpdate(mediaId, { deleted: false }, { new: true });
-  if (!media) throw new RecordNotFoundError("Media not found");
-  return media;
-};
+/** GET `/api/admin/events/deleted` → EventRecord[] */
+async function getDeletedEvents() {
+  return Event.find({ deleted: true }).lean();
+}
 
-const hardDeleteMedia = async (mediaId) => {
-  const media = await EventMedia.findByIdAndDelete(mediaId);
-  if (!media) throw new RecordNotFoundError("Media not found");
-};
+/** PUT `/api/admin/events/restore/:id` → restored EventRecord */
+async function restoreEvent(eventId) {
+  const ev = await Event.findByIdAndUpdate(
+    eventId,
+    { deleted: false },
+    { new: true }
+  );
+  if (!ev) throw new RecordNotFoundError("Event not found");
+  return ev;
+}
 
-const getPlatformAnalytics = async () => {
-  const totalUsers = await User.countDocuments({});
-  const totalEvents = await Event.countDocuments({});
-  const totalMedia = await EventMedia.countDocuments({});
-  const deletedEvents = await Event.countDocuments({ deleted: true });
-  const deletedMedia = await EventMedia.countDocuments({ deleted: true });
+/** DELETE `/api/admin/events/:id` → hard-delete */
+async function hardDeleteEvent(eventId) {
+  const ev = await Event.findByIdAndDelete(eventId);
+  if (!ev) throw new RecordNotFoundError("Event not found");
+}
 
-  return {
-    totalUsers,
-    totalEvents,
-    totalMedia,
-    deletedEvents,
-    deletedMedia,
-  };
-};
+// ——— Media ——————————————————————————————————————————————————————
 
+/** GET `/api/admin/media/deleted` → MediaRecord[] */
+async function getDeletedMedia() {
+  return EventMedia.find({ deleted: true }).lean();
+}
+
+/** PUT `/api/admin/media/restore/:id` → restored MediaRecord */
+async function restoreMedia(mediaId) {
+  const m = await EventMedia.findByIdAndUpdate(
+    mediaId,
+    { deleted: false },
+    { new: true }
+  );
+  if (!m) throw new RecordNotFoundError("Media not found");
+  return m;
+}
+
+/** DELETE `/api/admin/media/:id` → hard-delete */
+async function hardDeleteMedia(mediaId) {
+  const m = await EventMedia.findByIdAndDelete(mediaId);
+  if (!m) throw new RecordNotFoundError("Media not found");
+}
+
+// ——— Analytics —————————————————————————————————————————————————————
+
+/** GET `/api/admin/analytics` → Analytics */
+async function getPlatformAnalytics() {
+  const totalUsers     = await User.countDocuments({});
+  const totalEvents    = await Event.countDocuments({});
+  const totalMedia     = await EventMedia.countDocuments({});
+  const deletedEvents  = await Event.countDocuments({ deleted: true });
+  const deletedMedia   = await EventMedia.countDocuments({ deleted: true });
+
+  return { totalUsers, totalEvents, totalMedia, deletedEvents, deletedMedia };
+}
+
+// ————————————————————————————————————————————————————————————————————————
 module.exports = {
+  // users
   getUsers,
   updateUserRole,
   softDeleteUser,
+
+  // events
   banEvent,
+  getDeletedEvents,
+  restoreEvent,
+  hardDeleteEvent,
+
+  // media
   getDeletedMedia,
   restoreMedia,
   hardDeleteMedia,
+
+  // analytics
   getPlatformAnalytics,
 };
