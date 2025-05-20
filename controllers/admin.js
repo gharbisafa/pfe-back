@@ -1,102 +1,114 @@
-const Event = require("../models/event");
-const EventMedia = require("../models/eventMedia");
-const User = require("../models/user");
-// Fetch deleted events
-const getDeletedEvents = async (req, res) => {
+const adminService = require("../services/adminService");
+const DataValidationError = require("../errors/dataValidationError");
+const RecordNotFoundError = require("../errors/recordNotFoundError");
+
+const welcomeAdmin = async (req, res) => {
   try {
-    const events = await Event.find({ deleted: true }).lean();
-    res.status(200).json(events);
+    res.json({ message: "Welcome Admin!" });
   } catch (error) {
-    console.error("Error fetching deleted events:", error);
-    res.status(500).json({ error: "FETCH_DELETED_EVENTS_FAILED" });
+    res.sendStatus(500);
   }
 };
 
-// Restore a deleted event
-const restoreEvent = async (req, res) => {
+const fetchUsers = async (req, res) => {
   try {
-    const event = await Event.findByIdAndUpdate(req.params.id, { deleted: false }, { new: true });
-    if (!event) return res.status(404).json({ error: "EVENT_NOT_FOUND" });
-    res.status(200).json({ message: "Event restored successfully", event });
+    const { role, status } = req.query; // Filters
+    const users = await adminService.getUsers({ role, status });
+    res.status(200).json(users);
   } catch (error) {
-    console.error("Error restoring event:", error);
-    res.status(500).json({ error: "RESTORE_EVENT_FAILED" });
+    res.sendStatus(500);
   }
 };
 
-// Hard delete an event
-const hardDeleteEvent = async (req, res) => {
+const updateUserRole = async (req, res) => {
   try {
-    const event = await Event.findByIdAndDelete(req.params.id);
-    if (!event) return res.status(404).json({ error: "EVENT_NOT_FOUND" });
-    res.status(200).json({ message: "Event permanently deleted" });
+    const updatedUser = await adminService.updateUserRole(req.params.id, req.body.role);
+    res.status(200).json({ message: "User role updated successfully", user: updatedUser });
   } catch (error) {
-    console.error("Error deleting event:", error);
-    res.status(500).json({ error: "DELETE_EVENT_FAILED" });
+    if (error instanceof RecordNotFoundError) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.sendStatus(500);
+    }
   }
 };
 
-// Fetch deleted media
+const softDeleteUser = async (req, res) => {
+  try {
+    await adminService.softDeleteUser(req.params.id);
+    res.status(200).json({ message: "User soft-deleted successfully" });
+  } catch (error) {
+    if (error instanceof RecordNotFoundError) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.sendStatus(500);
+    }
+  }
+};
+
+const banEvent = async (req, res) => {
+  try {
+    await adminService.banEvent(req.params.id);
+    res.status(200).json({ message: "Event banned successfully" });
+  } catch (error) {
+    if (error instanceof RecordNotFoundError) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.sendStatus(500);
+    }
+  }
+};
+
 const getDeletedMedia = async (req, res) => {
   try {
-    const media = await EventMedia.find({ deleted: true }).lean();
+    const media = await adminService.getDeletedMedia();
     res.status(200).json(media);
   } catch (error) {
-    console.error("Error fetching deleted media:", error);
-    res.status(500).json({ error: "FETCH_DELETED_MEDIA_FAILED" });
+    res.sendStatus(500);
   }
 };
 
-// Restore a deleted media
 const restoreMedia = async (req, res) => {
   try {
-    const media = await EventMedia.findByIdAndUpdate(req.params.id, { deleted: false }, { new: true });
-    if (!media) return res.status(404).json({ error: "MEDIA_NOT_FOUND" });
-    res.status(200).json({ message: "Media restored successfully", media });
+    const restoredMedia = await adminService.restoreMedia(req.params.id);
+    res.status(200).json({ message: "Media restored successfully", media: restoredMedia });
   } catch (error) {
-    console.error("Error restoring media:", error);
-    res.status(500).json({ error: "RESTORE_MEDIA_FAILED" });
+    if (error instanceof RecordNotFoundError) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.sendStatus(500);
+    }
   }
 };
 
-// Hard delete media
 const hardDeleteMedia = async (req, res) => {
   try {
-    const media = await EventMedia.findByIdAndDelete(req.params.id);
-    if (!media) return res.status(404).json({ error: "MEDIA_NOT_FOUND" });
+    await adminService.hardDeleteMedia(req.params.id);
     res.status(200).json({ message: "Media permanently deleted" });
   } catch (error) {
-    console.error("Error deleting media:", error);
-    res.status(500).json({ error: "DELETE_MEDIA_FAILED" });
+    if (error instanceof RecordNotFoundError) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.sendStatus(500);
+    }
   }
 };
 
-// Get platform analytics
 const getPlatformAnalytics = async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments({});
-    const totalEvents = await Event.countDocuments({});
-    const totalMedia = await EventMedia.countDocuments({});
-    const deletedEvents = await Event.countDocuments({ deleted: true });
-    const deletedMedia = await EventMedia.countDocuments({ deleted: true });
-
-    res.status(200).json({
-      totalUsers,
-      totalEvents,
-      totalMedia,
-      deletedEvents,
-      deletedMedia,
-    });
+    const analytics = await adminService.getPlatformAnalytics();
+    res.status(200).json(analytics);
   } catch (error) {
-    console.error("Error fetching platform analytics:", error);
-    res.status(500).json({ error: "FETCH_ANALYTICS_FAILED" });
+    res.sendStatus(500);
   }
 };
 
 module.exports = {
-  getDeletedEvents,
-  restoreEvent,
-  hardDeleteEvent,
+  welcomeAdmin,
+  fetchUsers,
+  updateUserRole,
+  softDeleteUser,
+  banEvent,
   getDeletedMedia,
   restoreMedia,
   hardDeleteMedia,

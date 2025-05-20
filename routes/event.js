@@ -61,19 +61,19 @@ router.get(
 );
 
 
-// Comments
-router.post(
-  "/:eventId/comment",
-  passport.authenticate("jwt", { session: false }),
-  eventController.addComment
-);
+// // Comments
+// router.post(
+//   "/:eventId/comment",
+//   passport.authenticate("jwt", { session: false }),
+//   eventController.addComment
+// );
 
-// Feedback
-router.post(
-  "/:eventId/feedback",
-  passport.authenticate("jwt", { session: false }),
-  eventController.addFeedback
-);
+// // Feedback
+// router.post(
+//   "/:eventId/feedback",
+//   passport.authenticate("jwt", { session: false }),
+//   eventController.addFeedback
+// );
 // Likes
 router.post(
   "/:eventId/like",
@@ -101,12 +101,6 @@ router.put(
   eventMiddleware.isEventOwner, // Ensure only the event creator can toggle archive
   eventController.toggleArchive
 );
-// // Toggle likes, going, interested
-// router.post(
-//   "/:eventId/toggle",
-//   passport.authenticate("jwt", { session: false }),
-//   eventMiddleware.setUserId,
-//   eventController.toggleField
-// );
+
 
 module.exports = router;

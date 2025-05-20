@@ -10,5 +10,8 @@ router.use("/admin", require("./admin"));
 router.use("/notification", require("./notification"));
 router.use("/reservation", require("./reservation"));
 
+router.use("/feedbacks", require("./feedbacks"));
+router.use("/comments", require("./comments"));
+
 
 module.exports = router;

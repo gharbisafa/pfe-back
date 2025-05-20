@@ -137,52 +137,33 @@ const deleteById = async (req, res) => {
   }
 };
 
-const addComment = async (req, res) => {
-  const { eventId } = req.params;
-  const { userId, text } = req.body;
-  try {
-    const event = await Event.findById(eventId);
-    if (!event) return res.status(404).json({ error: "Event not found" });
-    event.comments.push({ author: userId, message: text });
-    await event.save();
-    res.status(201).json(event);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "COMMENT_FAILED" });
-  }
-};
-
-const addFeedback = async (req, res) => {
-  const { eventId } = req.params;
-  const { userId, rating, text } = req.body;
-  try {
-    const event = await Event.findById(eventId);
-    if (!event) return res.status(404).json({ error: "Event not found" });
-    event.feedbacks.push({ user: userId, rating, message: text });
-    await event.save();
-    res.status(201).json(event);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "FEEDBACK_FAILED" });
-  }
-};
-//likes,going,interested
-// const toggleField = async (req, res) => {
-//   const { eventId } = req.params; // Changed from `id` to match route
-//   const { field } = req.body;
-
-//   console.log("Toggling field:", { eventId, userId: req.user?._id, field }); // Debug
-
+// const addComment = async (req, res) => {
+//   const { eventId } = req.params;
+//   const { userId, text } = req.body;
 //   try {
-//     const updatedEvent = await eventService.toggleEventField(
-//       eventId,
-//       req.user._id,
-//       field
-//     );
-//     res.status(200).json(updatedEvent);
-//   } catch (error) {
-//     console.error("Error toggling field:", error);
-//     res.status(500).json({ message: error.message });
+//     const event = await Event.findById(eventId);
+//     if (!event) return res.status(404).json({ error: "Event not found" });
+//     event.comments.push({ author: userId, message: text });
+//     await event.save();
+//     res.status(201).json(event);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "COMMENT_FAILED" });
+//   }
+// };
+
+// const addFeedback = async (req, res) => {
+//   const { eventId } = req.params;
+//   const { userId, rating, text } = req.body;
+//   try {
+//     const event = await Event.findById(eventId);
+//     if (!event) return res.status(404).json({ error: "Event not found" });
+//     event.feedbacks.push({ user: userId, rating, message: text });
+//     await event.save();
+//     res.status(201).json(event);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "FEEDBACK_FAILED" });
 //   }
 // };
 const toggleLike = async (req, res) => {
@@ -342,8 +323,6 @@ module.exports = {
   add,
   updateById,
   deleteById,
-  addComment,
-  addFeedback,
   toggleLike,
   toggleGoing,
   toggleInterested,
