@@ -192,7 +192,6 @@ const getPlatformAnalytics = async (req, res) => {
     res.sendStatus(500);
   }
 };
-getPlatformAnalytics
 // ————————————————————————————————————————————————————————————————————————
 module.exports = {
   welcomeAdmin,

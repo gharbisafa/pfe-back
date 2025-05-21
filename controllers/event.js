@@ -9,11 +9,6 @@ const notificationService = require("../services/notificationService");
  
 const get = async (req, res) => {
   try {
-    // 1) Parse & normalize pagination params
-    const page  = parseInt(req.query.page,  10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
-
-    // 2) Destructure the rest of the filters
     const {
       type,
       location,
@@ -22,7 +17,7 @@ const get = async (req, res) => {
       sortBy,
       sortOrder = "asc",
       page = 1,
-      limit = 10,
+      limit = 12,
       search,
     } = req.query;
 
@@ -345,8 +340,5 @@ module.exports = {
   add,
   updateById,
   deleteById,
-  addRSVP,
-  addComment,
-  addFeedback,
   toggleField, 
 };
