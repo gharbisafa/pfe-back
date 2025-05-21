@@ -3,6 +3,7 @@
 const adminService = require("../services/adminService");
 const DataValidationError   = require("../errors/dataValidationError");
 const RecordNotFoundError   = require("../errors/recordNotFoundError");
+const { get } = require("mongoose");
 
 /**
  * Welcome endpoint for admins
@@ -191,7 +192,7 @@ const getPlatformAnalytics = async (req, res) => {
     res.sendStatus(500);
   }
 };
-
+getPlatformAnalytics
 // ————————————————————————————————————————————————————————————————————————
 module.exports = {
   welcomeAdmin,
