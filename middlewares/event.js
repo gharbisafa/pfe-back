@@ -25,17 +25,36 @@ const validateEventData = (req, res, next) => {
   next();
 };
 
-// Middleware to check if the user is the event owner
+// // Middleware to check if the user is the event owner
+// const isEventOwner = async (req, res, next) => {
+//   const { eventId } = req.params;
+
+//   try {
+//     const event = await Event.findById(eventId);
+//     if (!event) {
+//       return res.status(404).json({ message: "Event not found" });
+//     }
+
+//     // Check if the user is the creator of the event
+//     if (event.createdBy.toString() !== req.user._id.toString()) {
+//       return res.status(403).json({ message: "You are not authorized to perform this action." });
+//     }
+
+//     next();
+//   } catch (error) {
+//     console.error("Error checking event ownership:", error);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// };
 const isEventOwner = async (req, res, next) => {
-  const { eventId } = req.params;
+  const { id: eventId } = req.params;
 
   try {
     const event = await Event.findById(eventId);
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
+    if (!event || event.deleted) {  // Check for deleted flag
+      return res.status(404).json({ message: "Event not found or already deleted" });
     }
 
-    // Check if the user is the creator of the event
     if (event.createdBy.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "You are not authorized to perform this action." });
     }
