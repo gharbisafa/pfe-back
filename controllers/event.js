@@ -3,9 +3,10 @@ const Event = require("../models/event");
 const eventService = require("../services/eventService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
-const { castData } = require("../utils/general");
+const notificationService = require("../services/notificationService");
 
 
+ 
 const get = async (req, res) => {
   try {
     // 1) Parse & normalize pagination params
@@ -83,30 +84,13 @@ const getById = async (req, res) => {
   }
 };
 
-const getDeleted = async (req, res) => {
-  try {
-    const result = await eventService.getDeleted({}, {});
-    res.status(200).json(result);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "FETCH_FAILED" });
-  }
-};
-
+// Add Event
 const add = async (req, res) => {
   try {
+    // req.data already prepared by setData middleware
     const result = await eventService.add(req.data);
     res.status(201).json(result);
   } catch (error) {
-    if (error instanceof DataValidationError) {
-      return res.status(400).json({
-        error: "VALIDATION_ERROR",
-        details: error.issues.map(issue => ({
-          field: issue.path,
-          message: issue.message
-        }))
-      });
-    }
     console.error("Event creation failed:", error);
     res.status(500).json({ error: "EVENT_CREATION_FAILED" });
   }
@@ -156,13 +140,42 @@ const deleteById = async (req, res) => {
   }
 };
 
-const addRSVP = async (req, res) => {
+// const addComment = async (req, res) => {
+//   const { eventId } = req.params;
+//   const { userId, text } = req.body;
+//   try {
+//     const event = await Event.findById(eventId);
+//     if (!event) return res.status(404).json({ error: "Event not found" });
+//     event.comments.push({ author: userId, message: text });
+//     await event.save();
+//     res.status(201).json(event);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "COMMENT_FAILED" });
+//   }
+// };
+
+// const addFeedback = async (req, res) => {
+//   const { eventId } = req.params;
+//   const { userId, rating, text } = req.body;
+//   try {
+//     const event = await Event.findById(eventId);
+//     if (!event) return res.status(404).json({ error: "Event not found" });
+//     event.feedbacks.push({ user: userId, rating, message: text });
+//     await event.save();
+//     res.status(201).json(event);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "FEEDBACK_FAILED" });
+//   }
+// };
+const toggleLike = async (req, res) => {
   const { eventId } = req.params;
-  const { userId, rsvp } = req.body;
+
   try {
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ error: "Event not found" });
-    const existing = event.guests.find(g => g.user.toString() === userId);
+    const existing = event.guests.find((g) => g.user.toString() === userId);
     if (existing) existing.rsvp = rsvp;
     else event.guests.push({ user: userId, rsvp });
     await event.save();
@@ -173,22 +186,23 @@ const addRSVP = async (req, res) => {
   }
 };
 
-const addComment = async (req, res) => {
+const toggleGoing = async (req, res) => {
   const { eventId } = req.params;
-  const { userId, text } = req.body;
+
   try {
-    const event = await Event.findById(eventId);
-    if (!event) return res.status(404).json({ error: "Event not found" });
-    event.comments.push({ author: userId, message: text });
-    await event.save();
-    res.status(201).json(event);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "COMMENT_FAILED" });
+    const updatedEvent = await eventService.toggleEventField(
+      eventId,
+      req.user._id,
+      "going" // Explicitly toggle "going"
+    );
+    res.status(200).json(updatedEvent);
+  } catch (error) {
+    console.error("Error toggling going:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
-const addFeedback = async (req, res) => {
+const toggleInterested = async (req, res) => {
   const { eventId } = req.params;
   const { userId, rating, text } = req.body;
   try {
@@ -202,24 +216,26 @@ const addFeedback = async (req, res) => {
     res.status(500).json({ error: "FEEDBACK_FAILED" });
   }
 };
-
-// likes, going, interested
+//likes,going,interested
 const toggleField = async (req, res) => {
-  const { eventId } = req.params;
+  const { eventId } = req.params; // Changed from `id` to match route
   const { field } = req.body;
-  console.log("Toggling field:", { eventId, userId: req.user?._id, field });
+
+  console.log("Toggling field:", { eventId, userId: req.user?._id, field }); // Debug
+
   try {
     const updatedEvent = await eventService.toggleEventField(
       eventId,
       req.user._id,
-      field
+      "interested" // Explicitly toggle "interested"
     );
     res.status(200).json(updatedEvent);
   } catch (error) {
-    console.error("Error toggling field:", error);
+    console.error("Error toggling interested:", error);
     res.status(500).json({ message: error.message });
   }
 };
+
 
 const getMyEvents = async (req, res) => {
   try {
@@ -233,16 +249,104 @@ const getMyEvents = async (req, res) => {
   }
 };
 
+// Get all events the user marked as "interested"
+const getInterestedEvents = async (req, res) => {
+  try {
+    const events = await eventService.getUserEventsByField(req.user._id, "interested");
+    res.status(200).json(events);
+  } catch (error) {
+    console.error("Error fetching interested events:", error);
+    res.status(500).json({ error: "FETCH_FAILED" });
+  }
+};
+
+// Get all events the user marked as "going"
+const getGoingEvents = async (req, res) => {
+  try {
+    const events = await eventService.getUserEventsByField(req.user._id, "going");
+    res.status(200).json(events);
+  } catch (error) {
+    console.error("Error fetching going events:", error);
+    res.status(500).json({ error: "FETCH_FAILED" });
+  }
+};
+
+// Get all events the user marked as "liked"
+const getLikedEvents = async (req, res) => {
+  try {
+    const events = await eventService.getUserEventsByField(req.user._id, "likes");
+    res.status(200).json(events);
+  } catch (error) {
+    console.error("Error fetching liked events:", error);
+    res.status(500).json({ error: "FETCH_FAILED" });
+  }
+};
+
+// Get all media the user posted in the event media
+const getUserEventMedia = async (req, res) => {
+  try {
+    const media = await eventService.getUserEventMedia(req.user._id);
+    res.status(200).json(media);
+  } catch (error) {
+    console.error("Error fetching media posted in events:", error);
+    res.status(500).json({ error: "FETCH_FAILED" });
+  }
+};
+
+const notifyGuests = async (event, guests) => {
+  try {
+    const notifications = guests.map((guest) => {
+
+      if (!guest.user) {
+        throw new Error("Guest user is missing");
+      }
+
+      const message = `You've been invited to the event "${event.title}"`;
+
+
+      return notificationService.createNotification({
+        user: guest.user, // Ensure this is populated
+        type: "guest_invitation",
+        message,
+        event: event._id, // Ensure this is the event ID
+      });
+    });
+
+    await Promise.all(notifications);
+  } catch (error) {
+    console.error("Error notifying guests:", error);
+    throw new Error("NOTIFICATION_CREATION_FAILED");
+  }
+};
+const toggleArchive = async (req, res) => {
+  const { eventId } = req.params;
+
+  try {
+    const updatedEvent = await eventService.toggleEventArchive(eventId, req.user._id);
+    res.status(200).json({
+      message: `Event ${updatedEvent.isArchived ? "archived" : "unarchived"} successfully.`,
+      event: updatedEvent,
+    });
+  } catch (error) {
+    console.error("Error toggling archive status:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
 module.exports = {
+  getInterestedEvents,
+  getGoingEvents,
+  getLikedEvents,
+  getUserEventMedia,
   getMyEvents,
   get,
   getById,
-  getDeleted,
   add,
   updateById,
   deleteById,
   addRSVP,
   addComment,
   addFeedback,
-  toggleField,
+  toggleField, 
 };

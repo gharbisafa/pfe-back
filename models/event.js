@@ -61,7 +61,7 @@
       },
       createdBy: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        ref: "UserAccount", // Update to reference UserAccount
         required: true,
       },
       price: {
@@ -71,6 +71,7 @@
       },
       bookingLink: {
         type: String,
+        default: null,
         validate: {
           validator: function (value) {
             if (!value) return true;
@@ -79,7 +80,7 @@
           message: "Invalid booking link URL",
         },
       },
-      deleted: { type: Boolean, default: false },
+      
       guests: {
         type: [
           {
@@ -121,46 +122,46 @@
           ref: "User",
         },
       ],
-      comments: [
-        {
-          author: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-          },
-          message: {
-            type: String,
-            required: true,
-          },
-          replyTo: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-          },
-          createdAt: {
-            type: Date,
-            default: Date.now,
-          },
-        },
-      ],
-      feedbacks: [
-        {
-          user: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-          },
-          rating: {
-            type: Number,
-            min: 1,
-            max: 5,
-          },
-          message: {
-            type: String,
-          },
-          createdAt: {
-            type: Date,
-            default: Date.now,
-          },
-        },
-      ],
+      // comments: [
+      //   {
+      //     author: {
+      //       type: mongoose.Schema.Types.ObjectId,
+      //       ref: "User",
+      //     },
+      //     message: {
+      //       type: String,
+      //       required: true,
+      //     },
+      //     replyTo: {
+      //       type: mongoose.Schema.Types.ObjectId,
+      //       ref: "User",
+      //     },
+      //     createdAt: {
+      //       type: Date,
+      //       default: Date.now,
+      //     },
+      //   },
+      // ],
+      // feedbacks: [
+      //   {
+      //     user: {
+      //       type: mongoose.Schema.Types.ObjectId,
+      //       ref: "User",
+      //     },
+      //     rating: {
+      //       type: Number,
+      //       min: 1,
+      //       max: 5,
+      //     },
+      //     message: {
+      //       type: String,
+      //     },
+      //     createdAt: {
+      //       type: Date,
+      //       default: Date.now,
+      //     },
+      //   },
+      // ],
       photos: {
         type: [String],
         validate: [
@@ -168,28 +169,11 @@
           "Maximum 3 photos allowed when creating the event.",
         ],
       },
-      gallery: [
-        {
-          uploadedBy: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-          },
-          mediaUrl: {
-            type: String,
-            required: true,
-          },
-          mediaType: {
-            type: String,
-            enum: ["photo", "video"],
-            required: true,
-          },
-          uploadedAt: {
-            type: Date,
-            default: Date.now,
-          },
-        },
-      ],
+      deleted: { type: Boolean, default: false },
+      isArchived: { type: Boolean, default: false },
+      banned: { type: Boolean, default: false },
+
+      
     },
     {
       timestamps: { createdAt: true, updatedAt: true },

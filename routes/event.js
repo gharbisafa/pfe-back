@@ -4,7 +4,12 @@ const passport = require("passport");
 const eventController = require("../controllers/event");
 const eventMiddleware = require("../middlewares/event");
 
-const { uploadEventPhotos } = require("../middlewares/upload"); // Import the multer upload configuration
+const { uploadEventPhotos } = require("../middlewares/upload");
+
+router.get("/interested", passport.authenticate("jwt", { session: false }), eventController.getInterestedEvents);
+router.get("/going", passport.authenticate("jwt", { session: false }), eventController.getGoingEvents);
+router.get("/liked", passport.authenticate("jwt", { session: false }), eventController.getLikedEvents);
+router.get("/media", passport.authenticate("jwt", { session: false }), eventController.getUserEventMedia);
 
 // CREATE: Add a new event
 router.post(
@@ -55,38 +60,47 @@ router.get(
   eventController.getById
 );
 
-// GET DELETED EVENTS (optional route, useful for admin panels)
-router.get(
-  "/deleted/list",
-  passport.authenticate("jwt", { session: false }),
-  eventController.getDeleted
-);
-// RSVP
+
+// // Comments
+// router.post(
+//   "/:eventId/comment",
+//   passport.authenticate("jwt", { session: false }),
+//   eventController.addComment
+// );
+
+// // Feedback
+// router.post(
+//   "/:eventId/feedback",
+//   passport.authenticate("jwt", { session: false }),
+//   eventController.addFeedback
+// );
+// Likes
 router.post(
-  "/:eventId/rsvp",
+  "/:eventId/like",
   passport.authenticate("jwt", { session: false }),
-  eventController.addRSVP
+  eventController.toggleLike
 );
 
-// Comments
+// Going
 router.post(
-  "/:eventId/comment",
+  "/:eventId/going",
   passport.authenticate("jwt", { session: false }),
-  eventController.addComment
+  eventController.toggleGoing
 );
 
-// Feedback
+// Interested
 router.post(
-  "/:eventId/feedback",
+  "/:eventId/interested",
   passport.authenticate("jwt", { session: false }),
-  eventController.addFeedback
+  eventController.toggleInterested
 );
-// Toggle likes, going, interested
-router.post(
-  "/:eventId/toggle",
+// Archive/Unarchive Event
+router.put(
+  "/:eventId/archive",
   passport.authenticate("jwt", { session: false }),
-  eventMiddleware.setUserId,
-  eventController.toggleField
+  eventMiddleware.isEventOwner, // Ensure only the event creator can toggle archive
+  eventController.toggleArchive
 );
+
 
 module.exports = router;

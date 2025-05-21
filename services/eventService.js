@@ -5,13 +5,13 @@ const RecordNotFoundError = require("../errors/recordNotFoundError");
 const { castData } = require("../utils/general");
 const { getPaginatedEvents } = require("./eventPaginationService");
 
+const EventMedia = require("../models/eventMedia");
+const notificationService = require("./notificationService");
+
 const ObjectId = mongoose.Types.ObjectId;
 const rsvpEnum = ["yes", "no", "maybe"];
 
 
-// async function getFilteredEventsWithCount({ filters, sort = {}, page = 1, limit = 10 }) {
-//   return await getPaginatedEvents(filters, {}, page, limit, sort);
-// }
 async function getFilteredEventsWithCount({ filters, sort = {}, page = 1, limit = 10 }) {
   return await getPaginatedEvents(filters, {}, page, limit, sort);
 }
@@ -55,6 +55,34 @@ function validateGuests(guests, userIds = []) {
   });
 }
 
+// Get events by specific field ("likes", "going", "interested")
+const getUserEventsByField = async (userId, field) => {
+  if (!["likes", "going", "interested"].includes(field)) {
+    throw new Error("Invalid field for user events");
+  }
+
+  const events = await Event.find({
+    [field]: userId,
+    deleted: false, // Ensure the event is not deleted
+  })
+    .lean()
+    .exec();
+
+  return events;
+};
+
+// Get media the user posted in the event media
+const getUserEventMedia = async (userId) => {
+  const media = await EventMedia.find({
+    user: userId,
+    deleted: false, // Ensure the media is not deleted
+  })
+    .lean()
+    .exec();
+
+  return media;
+};
+
 const getById = async (_id) => {
   let event = await Event.findById(_id).lean().exec();
   if (!event || event.deleted) return false;
@@ -77,12 +105,6 @@ const get = async (filter = {}, projection = {}) => {
   return events;
 };
 
-const getDeleted = async (filter = {}, projection = {}) => {
-  let events = await Event.find({ ...filter, deleted: true }, projection)
-    .lean()
-    .exec();
-  return events;
-};
 
 const add = async (data) => {
   try {
@@ -121,7 +143,6 @@ const add = async (data) => {
 
     const event = new Event(castedData);
     await event.save();
-    console.log("Event saved successfully:", event);
     return event;
   } catch (error) {
     if (error instanceof mongoose.Error.ValidationError) {
@@ -148,6 +169,7 @@ const updateById = async (eventId, updateData, currentUserId) => {
     }
 
     // Parse guests from string if needed
+    let newGuests = [];
     if (updateData.guests) {
       if (typeof updateData.guests === "string") {
         try {
@@ -167,6 +189,12 @@ const updateById = async (eventId, updateData, currentUserId) => {
         event.createdBy.toString(),
         currentUserId.toString()
       ]);
+
+      // Identify new guests
+      const existingGuestIds = event.guests.map((g) => g.user.toString());
+      newGuests = updateData.guests.filter(
+        (g) => !existingGuestIds.includes(g.user.toString())
+      );
     }
 
     // Add support for updating photos
@@ -174,6 +202,7 @@ const updateById = async (eventId, updateData, currentUserId) => {
       castedData.photos = updateData.photos;
     }
 
+    // Update the event in the database
     const updatedEvent = await Event.findOneAndUpdate(
       { _id: eventId, deleted: { $ne: true } },
       castedData,
@@ -181,6 +210,18 @@ const updateById = async (eventId, updateData, currentUserId) => {
     );
 
     if (!updatedEvent) throw new RecordNotFoundError(Event, eventId);
+
+    // Notify all relevant users
+    const event = await Event.findById(eventId).lean();
+    const guestsToNotify = event.guests.map((g) => g.user.toString());
+    const goingToNotify = event.going.map((g) => g.toString());
+
+    // Combine and remove duplicates
+    const usersToNotify = [...new Set([...guestsToNotify, ...goingToNotify])];
+
+    // Send notifications
+    await notificationService.notifyUsers(updatedEvent, usersToNotify);
+
     return updatedEvent;
     
   } catch (error) {
@@ -190,8 +231,6 @@ const updateById = async (eventId, updateData, currentUserId) => {
     throw error;
   }
 };
-
-
 const deleteById = async (_id) => {
   let event = await Event.findById(_id).exec();
   if (!event) throw new RecordNotFoundError(Event, _id);
@@ -207,9 +246,6 @@ const deleteById = async (_id) => {
 //likes,going,interested
 
 const toggleEventField = async (eventId, userId, field) => {
-  console.log("Raw eventId:", eventId);
-  console.log("Type of eventId:", typeof eventId);
-  console.log("Is valid ObjectId:", ObjectId.isValid(eventId));
 
   const validFields = ["likes", "going", "interested"];
   if (!validFields.includes(field)) {
@@ -237,16 +273,36 @@ const toggleEventField = async (eventId, userId, field) => {
   await event.save();
   return event;
 };
+const toggleEventArchive = async (eventId, userId) => {
+  const event = await Event.findById(eventId);
+  if (!event) {
+    throw new Error("Event not found");
+  }
+
+  // Ensure the user is the event creator
+  if (event.createdBy.toString() !== userId.toString()) {
+    throw new Error("You are not authorized to archive or unarchive this event.");
+  }
+
+  // Toggle the archive status
+  event.isArchived = !event.isArchived;
+  await event.save();
+
+  return event;
+};
+
 
 
 module.exports = {
+  getUserEventsByField,
+  getUserEventMedia,
   getById,
   get,
-  getDeleted,
   add,
   updateById,
   deleteById,
   getFilteredEventsWithCount,
-  toggleEventField
+  toggleEventField,
+  toggleEventArchive,
 };
 
