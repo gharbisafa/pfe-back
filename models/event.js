@@ -110,58 +110,6 @@
           ref: "User",
         },
       ],
-      interested: [
-        {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-      ],
-      going: [
-        {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-      ],
-      // comments: [
-      //   {
-      //     author: {
-      //       type: mongoose.Schema.Types.ObjectId,
-      //       ref: "User",
-      //     },
-      //     message: {
-      //       type: String,
-      //       required: true,
-      //     },
-      //     replyTo: {
-      //       type: mongoose.Schema.Types.ObjectId,
-      //       ref: "User",
-      //     },
-      //     createdAt: {
-      //       type: Date,
-      //       default: Date.now,
-      //     },
-      //   },
-      // ],
-      // feedbacks: [
-      //   {
-      //     user: {
-      //       type: mongoose.Schema.Types.ObjectId,
-      //       ref: "User",
-      //     },
-      //     rating: {
-      //       type: Number,
-      //       min: 1,
-      //       max: 5,
-      //     },
-      //     message: {
-      //       type: String,
-      //     },
-      //     createdAt: {
-      //       type: Date,
-      //       default: Date.now,
-      //     },
-      //   },
-      // ],
       photos: {
         type: [String],
         validate: [

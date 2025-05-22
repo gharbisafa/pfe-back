@@ -6,8 +6,19 @@ const eventMiddleware = require("../middlewares/event");
 
 const { uploadEventPhotos } = require("../middlewares/upload");
 
-router.get("/interested", passport.authenticate("jwt", { session: false }), eventController.getInterestedEvents);
-router.get("/going", passport.authenticate("jwt", { session: false }), eventController.getGoingEvents);
+// RSVP Routes
+router.post(
+  "/:eventId/rsvp",
+  passport.authenticate("jwt", { session: false }),
+  eventController.updateRSVP // New endpoint to handle RSVP updates
+);
+
+router.get(
+  "/:eventId/rsvp",
+  passport.authenticate("jwt", { session: false }),
+  eventController.getEventRSVPs // New endpoint to fetch RSVPs for an event
+);
+
 router.get("/liked", passport.authenticate("jwt", { session: false }), eventController.getLikedEvents);
 router.get("/media", passport.authenticate("jwt", { session: false }), eventController.getUserEventMedia);
 
@@ -60,39 +71,11 @@ router.get(
   eventController.getById
 );
 
-
-// // Comments
-// router.post(
-//   "/:eventId/comment",
-//   passport.authenticate("jwt", { session: false }),
-//   eventController.addComment
-// );
-
-// // Feedback
-// router.post(
-//   "/:eventId/feedback",
-//   passport.authenticate("jwt", { session: false }),
-//   eventController.addFeedback
-// );
 // Likes
 router.post(
   "/:eventId/like",
   passport.authenticate("jwt", { session: false }),
   eventController.toggleLike
-);
-
-// Going
-router.post(
-  "/:eventId/going",
-  passport.authenticate("jwt", { session: false }),
-  eventController.toggleGoing
-);
-
-// Interested
-router.post(
-  "/:eventId/interested",
-  passport.authenticate("jwt", { session: false }),
-  eventController.toggleInterested
 );
 // Archive/Unarchive Event
 router.put(

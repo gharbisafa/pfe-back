@@ -5,6 +5,9 @@ const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const notificationService = require("../services/notificationService");
 
+const RSVP = require("../models/rsvp"); // New RSVP model
+
+
 
  
 const get = async (req, res) => {
@@ -134,36 +137,6 @@ const deleteById = async (req, res) => {
     res.sendStatus(500);
   }
 };
-
-// const addComment = async (req, res) => {
-//   const { eventId } = req.params;
-//   const { userId, text } = req.body;
-//   try {
-//     const event = await Event.findById(eventId);
-//     if (!event) return res.status(404).json({ error: "Event not found" });
-//     event.comments.push({ author: userId, message: text });
-//     await event.save();
-//     res.status(201).json(event);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "COMMENT_FAILED" });
-//   }
-// };
-
-// const addFeedback = async (req, res) => {
-//   const { eventId } = req.params;
-//   const { userId, rating, text } = req.body;
-//   try {
-//     const event = await Event.findById(eventId);
-//     if (!event) return res.status(404).json({ error: "Event not found" });
-//     event.feedbacks.push({ user: userId, rating, message: text });
-//     await event.save();
-//     res.status(201).json(event);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "FEEDBACK_FAILED" });
-//   }
-// };
 const toggleLike = async (req, res) => {
   const { eventId } = req.params;
 
@@ -244,28 +217,6 @@ const getMyEvents = async (req, res) => {
   }
 };
 
-// Get all events the user marked as "interested"
-const getInterestedEvents = async (req, res) => {
-  try {
-    const events = await eventService.getUserEventsByField(req.user._id, "interested");
-    res.status(200).json(events);
-  } catch (error) {
-    console.error("Error fetching interested events:", error);
-    res.status(500).json({ error: "FETCH_FAILED" });
-  }
-};
-
-// Get all events the user marked as "going"
-const getGoingEvents = async (req, res) => {
-  try {
-    const events = await eventService.getUserEventsByField(req.user._id, "going");
-    res.status(200).json(events);
-  } catch (error) {
-    console.error("Error fetching going events:", error);
-    res.status(500).json({ error: "FETCH_FAILED" });
-  }
-};
-
 // Get all events the user marked as "liked"
 const getLikedEvents = async (req, res) => {
   try {
@@ -327,22 +278,66 @@ const toggleArchive = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// Fetch RSVPs for an event with count and list
+const getEventRSVPs = async (req, res) => {
+  const { eventId } = req.params;
+
+  try {
+    // Fetch RSVPs for the given event
+    const rsvps = await RSVP.find({ event: eventId }).populate("user", "name email");
+
+    // Calculate the count of RSVPs
+    const count = rsvps.length;
+
+    // Respond with the count and the list of RSVPs
+    res.status(200).json({
+      count,
+      rsvps,
+    });
+  } catch (error) {
+    console.error("Error fetching RSVPs:", error);
+    res.status(500).json({ error: "FETCH_FAILED" });
+  }
+};
+
+// Update RSVP status for a user
+const updateRSVP = async (req, res) => {
+  const { eventId } = req.params;
+  const { status } = req.body; // "going", "interested", or "notgoing"
+  const userId = req.user._id;
+
+  try {
+    if (!["going", "interested", "notgoing"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status value" });
+    }
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    const updatedRSVP = await eventService.updateRSVP(eventId, userId, status);
+
+    res.status(200).json(updatedRSVP);
+  } catch (error) {
+    console.error("Error updating RSVP:", error);
+    res.status(500).json({ error: "SERVER_ERROR" });
+  }
+};
 
 
 module.exports = {
-  getInterestedEvents,
-  getGoingEvents,
   getLikedEvents,
   getUserEventMedia,
   getMyEvents,
   get,
   toggleLike,
-  toggleGoing,
-  toggleInterested,
   toggleArchive,
   getById,
   add,
   updateById,
   deleteById,
   toggleField, 
+  getEventRSVPs,
+  updateRSVP,
 };

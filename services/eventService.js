@@ -7,6 +7,8 @@ const { getPaginatedEvents } = require("./eventPaginationService");
 
 const EventMedia = require("../models/eventMedia");
 const notificationService = require("./notificationService");
+const RSVP = require("../models/rsvp"); // New RSVP model
+
 
 const ObjectId = mongoose.Types.ObjectId;
 const rsvpEnum = ["yes", "no", "maybe"];
@@ -291,7 +293,27 @@ const toggleEventArchive = async (eventId, userId) => {
   return event;
 };
 
+const updateRSVP = async (eventId, userId, status) => {
+  try {
+    // Validate event exists
+    const event = await Event.findById(eventId);
+    if (!event) throw new Error("Event not found");
 
+    // Find or update RSVP
+    const existingRSVP = await RSVP.findOne({ event: eventId, user: userId });
+    if (existingRSVP) {
+      existingRSVP.status = status;
+      await existingRSVP.save();
+      return existingRSVP;
+    }
+
+    const newRSVP = await RSVP.create({ event: eventId, user: userId, status });
+    return newRSVP;
+  } catch (error) {
+    console.error("Error updating RSVP:", error);
+    throw error;
+  }
+};
 
 module.exports = {
   getUserEventsByField,
@@ -304,5 +326,6 @@ module.exports = {
   getFilteredEventsWithCount,
   toggleEventField,
   toggleEventArchive,
+  updateRSVP,
 };
 
