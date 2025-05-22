@@ -192,18 +192,59 @@ const getPlatformAnalytics = async (req, res) => {
     res.sendStatus(500);
   }
 };
+const fetchUserById = async (req, res) => {
+  try {
+    const user = await adminService.getUserById(req.params.id);
+    if (!user) {
+      // service could also throw, but just in case:
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json(user);
+  } catch (err) {
+    console.error("fetchUserById error:", err);
+    if (err instanceof RecordNotFoundError) {
+      return res.status(404).json({ error: err.message });
+    }
+    res.sendStatus(500);
+  }
+};
+const fetchEventsByUser = async (req, res) => {
+  try {
+    const evs = await adminService.getEventsByUser(req.params.id);
+    return res.json(evs);
+  } catch (err) {
+    console.error("fetchEventsByUser error:", err);
+    res.sendStatus(500);
+  }
+};
+const fetchAllEvents = async (req, res) => {
+  try {
+    const events = await adminService.getAllEvents();
+    return res.status(200).json(events);
+  } catch (err) {
+    console.error("fetchAllEvents error:", err);
+    return res.sendStatus(500);
+  }
+};
 // ————————————————————————————————————————————————————————————————————————
 module.exports = {
+  // users
   welcomeAdmin,
   fetchUsers,
+  fetchUserById,
   updateUserRole,
   softDeleteUser,
+  // events
   banEvent,
   getDeletedEvents,
   restoreEvent,
   hardDeleteEvent,
+  fetchEventsByUser,     
+  fetchAllEvents,
+  // media
   getDeletedMedia,
   restoreMedia,
   hardDeleteMedia,
+  // analytics
   getPlatformAnalytics,
 };

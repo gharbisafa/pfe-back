@@ -62,8 +62,8 @@ const isEventOwner = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Error checking event ownership:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 // Middleware to check for duplicate RSVP
