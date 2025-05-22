@@ -138,11 +138,18 @@ async function getEventsByUser(userId) {
 }
 
 async function getAllEvents() {
-  // only non-deleted, non-archived, non-banned (or adjust as you see fit)
-  return Event.find({})
-    .populate("createdBy", "name")     // so you can show owner name on the UI
+  return Event.find({ deleted: false })
+    .populate({
+      path: "createdBy",               // → this is the UserAccount doc
+      select: "_id userInfo role",     // pick whatever you need
+      populate: {
+        path: "userInfo",               // inside UserAccount, userInfo → the actual User
+        select: "name email profileImage"
+      }
+    })
     .lean();
 }
+
 // ————————————————————————————————————————————————————————————————————————
 module.exports = {
   // users
