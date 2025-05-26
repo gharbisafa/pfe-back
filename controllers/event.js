@@ -139,51 +139,18 @@ const deleteById = async (req, res) => {
 };
 const toggleLike = async (req, res) => {
   const { eventId } = req.params;
+  const userId = req.user.id || req.user._id; // Make sure you have auth middleware
 
   try {
-    const event = await Event.findById(eventId);
-    if (!event) return res.status(404).json({ error: "Event not found" });
-    const existing = event.guests.find((g) => g.user.toString() === userId);
-    if (existing) existing.rsvp = rsvp;
-    else event.guests.push({ user: userId, rsvp });
-    await event.save();
+    // Use the service function to toggle the like
+    const event = await eventService.toggleEventField(eventId, userId, "likes");
     res.status(200).json(event);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "RSVP_FAILED" });
+    res.status(500).json({ error: "LIKE_TOGGLE_FAILED", message: err.message });
   }
 };
 
-const toggleGoing = async (req, res) => {
-  const { eventId } = req.params;
-
-  try {
-    const updatedEvent = await eventService.toggleEventField(
-      eventId,
-      req.user._id,
-      "going" // Explicitly toggle "going"
-    );
-    res.status(200).json(updatedEvent);
-  } catch (error) {
-    console.error("Error toggling going:", error);
-    res.status(500).json({ message: error.message });
-  }
-};
-
-const toggleInterested = async (req, res) => {
-  const { eventId } = req.params;
-  const { userId, rating, text } = req.body;
-  try {
-    const event = await Event.findById(eventId);
-    if (!event) return res.status(404).json({ error: "Event not found" });
-    event.feedbacks.push({ user: userId, rating, message: text });
-    await event.save();
-    res.status(201).json(event);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "FEEDBACK_FAILED" });
-  }
-};
 //likes,going,interested
 const toggleField = async (req, res) => {
   const { eventId } = req.params; // Changed from `id` to match route
@@ -317,8 +284,9 @@ const updateRSVP = async (req, res) => {
     }
 
     const updatedRSVP = await eventService.updateRSVP(eventId, userId, status);
-
-    res.status(200).json(updatedRSVP);
+    
+    await notificationService.notifyNewRSVP(eventId, event.createdBy, status);
+    res.status(200).json(updatedRSVP,{ message: "RSVP updated and notification sent successfully." });
   } catch (error) {
     console.error("Error updating RSVP:", error);
     res.status(500).json({ error: "SERVER_ERROR" });

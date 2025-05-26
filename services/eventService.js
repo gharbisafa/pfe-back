@@ -9,7 +9,6 @@ const EventMedia = require("../models/eventMedia");
 const notificationService = require("./notificationService");
 const RSVP = require("../models/rsvp"); // New RSVP model
 
-
 const ObjectId = mongoose.Types.ObjectId;
 const rsvpEnum = ["yes", "no", "maybe"];
 
@@ -107,7 +106,6 @@ const get = async (filter = {}, projection = {}) => {
   return events;
 };
 
-
 const add = async (data) => {
   try {
     // Cast simple fields
@@ -143,8 +141,17 @@ const add = async (data) => {
       castedData.photos = data.photos;
     }
 
+    // 1. Create and save the event first!
     const event = new Event(castedData);
     await event.save();
+
+    // 2. Now notify admins (event is available)
+    await notificationService.createSharedNotification({
+      type: "add_event",
+      message: `A new event "${event.title}" has been created.`,
+      event: event._id,
+    });
+
     return event;
   } catch (error) {
     if (error instanceof mongoose.Error.ValidationError) {
@@ -153,35 +160,70 @@ const add = async (data) => {
     throw error;
   }
 };
+// const add = async (data) => {
+//   try {
+//     // Cast simple fields
+//     const castedData = castData(data, [
+//       "title", "description", "location",
+//       "startDate", "endDate", "startTime", "endTime",
+//       "price", "bookingLink", "type", "visibility", "createdBy"
+//     ]);
+//     if (!castedData) {
+//       throw new DataValidationError(Event, [{
+//         path: "root",
+//         message: "Invalid event data structure"
+//       }]);
+//     }
+//     // Parse guests if it's a JSON string
+//     if (typeof data.guests === "string") {
+//       try {
+//         data.guests = JSON.parse(data.guests);
+//       } catch {
+//         throw new DataValidationError(Event, [{
+//           path: "guests",
+//           message: "Invalid guests format. Must be a JSON array."
+//         }]);
+//       }
+//     }
 
+//     // Handle guests with creator validation
+//     if (data.guests) {
+//       castedData.guests = validateGuests(data.guests, [data.createdBy.toString()]);
+//     }
+//     // Handle photos (basic validation if needed)
+//     if (data.photos && Array.isArray(data.photos)) {
+//       castedData.photos = data.photos;
+//     }
+//     // Notify admins
+//     await notificationService.createSharedNotification({
+//       type: "add_event",
+//       message: `A new event "${event.title}" has been created.`,
+//       event: event._id,
+//     });
+
+//     const event = new Event(castedData);
+//     await event.save();
+//     return event;
+//   } catch (error) {
+//     if (error instanceof mongoose.Error.ValidationError) {
+//       throw new DataValidationError(Event, Object.values(error.errors));
+//     }
+//     throw error;
+//   }
+// };
 const updateById = async (eventId, updateData, currentUserId) => {
   try {
-    // Cast simple fields
+    // Event update logic remains the same
     const castedData = castData(updateData, [
       "title", "description", "location",
       "startDate", "endDate", "startTime", "endTime",
       "price", "bookingLink", "type", "visibility"
     ]);
 
-    if (!castedData) {
-      throw new DataValidationError(Event, [{
-        path: "root",
-        message: "Invalid update data structure"
-      }]);
-    }
-
-    // Parse guests from string if needed
     let newGuests = [];
     if (updateData.guests) {
       if (typeof updateData.guests === "string") {
-        try {
-          updateData.guests = JSON.parse(updateData.guests);
-        } catch {
-          throw new DataValidationError(Event, [{
-            path: "guests",
-            message: "Invalid guests format. Must be a JSON array."
-          }]);
-        }
+        updateData.guests = JSON.parse(updateData.guests);
       }
 
       const event = await Event.findById(eventId).lean();
@@ -192,19 +234,12 @@ const updateById = async (eventId, updateData, currentUserId) => {
         currentUserId.toString()
       ]);
 
-      // Identify new guests
       const existingGuestIds = event.guests.map((g) => g.user.toString());
       newGuests = updateData.guests.filter(
         (g) => !existingGuestIds.includes(g.user.toString())
       );
     }
 
-    // Add support for updating photos
-    if (updateData.photos) {
-      castedData.photos = updateData.photos;
-    }
-
-    // Update the event in the database
     const updatedEvent = await Event.findOneAndUpdate(
       { _id: eventId, deleted: { $ne: true } },
       castedData,
@@ -213,19 +248,19 @@ const updateById = async (eventId, updateData, currentUserId) => {
 
     if (!updatedEvent) throw new RecordNotFoundError(Event, eventId);
 
-    // Notify all relevant users
+    // Notify users
     const event = await Event.findById(eventId).lean();
     const guestsToNotify = event.guests.map((g) => g.user.toString());
     const goingToNotify = event.going.map((g) => g.toString());
-
-    // Combine and remove duplicates
     const usersToNotify = [...new Set([...guestsToNotify, ...goingToNotify])];
 
-    // Send notifications
     await notificationService.notifyUsers(updatedEvent, usersToNotify);
 
+    if (newGuests.length > 0) {
+      await notificationService.notifyGuests(updatedEvent, newGuests);
+    }
+
     return updatedEvent;
-    
   } catch (error) {
     if (error instanceof mongoose.Error.ValidationError) {
       throw new DataValidationError(Event, Object.values(error.errors));
@@ -233,48 +268,172 @@ const updateById = async (eventId, updateData, currentUserId) => {
     throw error;
   }
 };
+// const updateById = async (eventId, updateData, currentUserId) => {
+//   try {
+//     // Cast simple fields
+//     const castedData = castData(updateData, [
+//       "title", "description", "location",
+//       "startDate", "endDate", "startTime", "endTime",
+//       "price", "bookingLink", "type", "visibility"
+//     ]);
+
+//     if (!castedData) {
+//       throw new DataValidationError(Event, [{
+//         path: "root",
+//         message: "Invalid update data structure"
+//       }]);
+//     }
+
+//     // Parse guests from string if needed
+//     let newGuests = [];
+//     if (updateData.guests) {
+//       if (typeof updateData.guests === "string") {
+//         try {
+//           updateData.guests = JSON.parse(updateData.guests);
+//         } catch {
+//           throw new DataValidationError(Event, [{
+//             path: "guests",
+//             message: "Invalid guests format. Must be a JSON array."
+//           }]);
+//         }
+//       }
+
+//       const event = await Event.findById(eventId).lean();
+//       if (!event) throw new RecordNotFoundError(Event, eventId);
+
+//       castedData.guests = validateGuests(updateData.guests, [
+//         event.createdBy.toString(),
+//         currentUserId.toString()
+//       ]);
+
+//       // Identify new guests
+//       const existingGuestIds = event.guests.map((g) => g.user.toString());
+//       newGuests = updateData.guests.filter(
+//         (g) => !existingGuestIds.includes(g.user.toString())
+//       );
+//     }
+
+//     // Add support for updating photos
+//     if (updateData.photos) {
+//       castedData.photos = updateData.photos;
+//     }
+
+//     // Update the event in the database
+//     const updatedEvent = await Event.findOneAndUpdate(
+//       { _id: eventId, deleted: { $ne: true } },
+//       castedData,
+//       { new: true, runValidators: true }
+//     );
+
+//     if (!updatedEvent) throw new RecordNotFoundError(Event, eventId);
+
+//     // Notify all relevant users
+//     const event = await Event.findById(eventId).lean();
+//     const guestsToNotify = event.guests.map((g) => g.user.toString());
+//     const goingToNotify = event.going.map((g) => g.toString());
+
+//     // Combine and remove duplicates
+//     const usersToNotify = [...new Set([...guestsToNotify, ...goingToNotify])];
+
+//     // Send notifications
+//     await notificationService.notifyUsers(updatedEvent, usersToNotify);
+
+//     return updatedEvent;
+    
+//   } catch (error) {
+//     if (error instanceof mongoose.Error.ValidationError) {
+//       throw new DataValidationError(Event, Object.values(error.errors));
+//     }
+//     throw error;
+//   }
+// };
+// const deleteById = async (_id) => {
+//   let event = await Event.findById(_id).exec();
+//   if (!event) throw new RecordNotFoundError(Event, _id);
+//   if (event.deleted) return false;
+
+//   event.deleted = true;
+//   console.log("event.deleted", event);
+//   await event.save();
+//   return event;
+
+// };
 const deleteById = async (_id) => {
-  let event = await Event.findById(_id).exec();
+  const event = await Event.findById(_id).exec();
   if (!event) throw new RecordNotFoundError(Event, _id);
   if (event.deleted) return false;
 
   event.deleted = true;
-  console.log("event.deleted", event);
   await event.save();
-  return event;
 
+  // Notify attendees
+  const userIdsToNotify = [
+    ...event.guests.map((g) => g.user.toString()),
+    ...event.going.map((g) => g.toString())
+  ];
+
+  await notificationService.notifyEventDeletion(event, userIdsToNotify);
+
+  // Notify admins
+  await notificationService.createSharedNotification({
+    type: "delete_event",
+    message: `The event "${event.title}" has been deleted.`,
+    event: event._id,
+  });
+
+  return event;
 };
 
-//likes,going,interested
 
+//likes
 const toggleEventField = async (eventId, userId, field) => {
-
-  const validFields = ["likes", "going", "interested"];
-  if (!validFields.includes(field)) {
-    throw new Error(`Invalid field: ${field}`);
-  }
-
-  // Ensure eventId is a valid ObjectId
-  if (!ObjectId.isValid(eventId)) {
-    throw new Error("Invalid event ID");
-  }
-
-  const event = await Event.findById(new ObjectId(eventId));
+  const event = await Event.findById(eventId);
   if (!event) throw new Error("Event not found");
 
   const userIdStr = userId.toString();
+  const index = event[field].map((id) => id.toString()).indexOf(userIdStr);
 
-  // Ensure userId comparison is consistent
-  const index = event[field].map(id => id.toString()).indexOf(userIdStr);
   if (index > -1) {
-    event[field].splice(index, 1); // Remove if exists
+    event[field].splice(index, 1);
   } else {
-    event[field].push(userId); // Add if new
+    event[field].push(userId);
+
+    if (field === "likes" && event.createdBy.toString() !== userIdStr) {
+      await notificationService.notifyEventLike(eventId, event.createdBy);
+    }
   }
 
   await event.save();
   return event;
 };
+// const toggleEventField = async (eventId, userId, field) => {
+
+//   const validFields = ["likes"];
+//   if (!validFields.includes(field)) {
+//     throw new Error(`Invalid field: ${field}`);
+//   }
+
+//   // Ensure eventId is a valid ObjectId
+//   if (!ObjectId.isValid(eventId)) {
+//     throw new Error("Invalid event ID");
+//   }
+
+//   const event = await Event.findById(new ObjectId(eventId));
+//   if (!event) throw new Error("Event not found");
+
+//   const userIdStr = userId.toString();
+
+//   // Ensure userId comparison is consistent
+//   const index = event[field].map(id => id.toString()).indexOf(userIdStr);
+//   if (index > -1) {
+//     event[field].splice(index, 1); // Remove if exists
+//   } else {
+//     event[field].push(userId); // Add if new
+//   }
+
+//   await event.save();
+//   return event;
+// };
 const toggleEventArchive = async (eventId, userId) => {
   const event = await Event.findById(eventId);
   if (!event) {
@@ -293,22 +452,44 @@ const toggleEventArchive = async (eventId, userId) => {
   return event;
 };
 
+// const updateRSVP = async (eventId, userId, status) => {
+//   try {
+//     // Validate event exists
+//     const event = await Event.findById(eventId);
+//     if (!event) throw new Error("Event not found");
+
+//     // Find or update RSVP
+//     const existingRSVP = await RSVP.findOne({ event: eventId, user: userId });
+//     if (existingRSVP) {
+//       existingRSVP.status = status;
+//       await existingRSVP.save();
+//       return existingRSVP;
+//     }
+
+//     const newRSVP = await RSVP.create({ event: eventId, user: userId, status });
+//     return newRSVP;
+//   } catch (error) {
+//     console.error("Error updating RSVP:", error);
+//     throw error;
+//   }
+// };
 const updateRSVP = async (eventId, userId, status) => {
   try {
-    // Validate event exists
     const event = await Event.findById(eventId);
     if (!event) throw new Error("Event not found");
 
-    // Find or update RSVP
     const existingRSVP = await RSVP.findOne({ event: eventId, user: userId });
     if (existingRSVP) {
       existingRSVP.status = status;
       await existingRSVP.save();
-      return existingRSVP;
+    } else {
+      await RSVP.create({ event: eventId, user: userId, status });
     }
 
-    const newRSVP = await RSVP.create({ event: eventId, user: userId, status });
-    return newRSVP;
+    // Notify event creator
+    await notificationService.notifyNewRSVP(eventId, event.createdBy, status);
+
+    return existingRSVP || { event: eventId, user: userId, status };
   } catch (error) {
     console.error("Error updating RSVP:", error);
     throw error;

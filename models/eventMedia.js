@@ -9,7 +9,7 @@ const eventMediaSchema = new mongoose.Schema(
     },
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "UserAccount",
       required: true,
     },
     type: {
@@ -24,7 +24,7 @@ const eventMediaSchema = new mongoose.Schema(
     likes: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        ref: "UserAccount",
       },
     ],
     archived: {
