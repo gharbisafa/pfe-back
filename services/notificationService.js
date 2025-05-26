@@ -1,6 +1,7 @@
 const Notification = require("../models/notification");
 const User = require("../models/userAccount"); // For fetching admins
 const { sendNotification } = require("./socketService");
+
 // --- Notify Functions ---
 
 // Notify the event creator about a new RSVP

@@ -61,9 +61,6 @@ io.on("connection", (socket) => {
  * Socket Service Integration
  * This makes the io instance available to other modules (e.g., notificationService)
  */
-const { setSocketIo } = require("../services/socketService");
-setSocketIo(io);
-
 /**
  * Listen on provided port, on all network interfaces.
  */
