@@ -4,7 +4,7 @@ const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const { castData } = require("../utils/general");
 const { getPaginatedEvents } = require("./eventPaginationService");
-
+const axios = require("axios");
 const EventMedia = require("../models/eventMedia");
 const notificationService = require("./notificationService");
 const RSVP = require("../models/rsvp"); // New RSVP model
@@ -120,13 +120,38 @@ const get = async (filter = {}, projection = {}) => {
   return events;
 };
 
+// ─── Helper: forward-geocode via Nominatim ───────────────────────
+async function geocodeLocation(location) {
+  const url = 'https://nominatim.openstreetmap.org/search';
+  const resp = await axios.get(url, {
+    params: { q: location, format: 'json', limit: 1 },
+    headers: { 'User-Agent': 'YourAppName/1.0' },
+    timeout: 5000,
+  });
+  if (Array.isArray(resp.data) && resp.data.length > 0) {
+    const { lat, lon } = resp.data[0];
+    return { latitude: parseFloat(lat), longitude: parseFloat(lon) };
+  }
+  return null;
+}
+
+// ─── Updated add() ───────────────────────────────────────────────
 const add = async (data) => {
   try {
-    // Cast simple fields
+    // 1) Cast simple fields
     const castedData = castData(data, [
-      "title", "description", "location",
-      "startDate", "endDate", "startTime", "endTime",
-      "price", "bookingLink", "type", "visibility", "createdBy"
+      "title",
+      "description",
+      "location",
+      "startDate",
+      "endDate",
+      "startTime",
+      "endTime",
+      "price",
+      "bookingLink",
+      "type",
+      "visibility",
+      "createdBy"
     ]);
     if (!castedData) {
       throw new DataValidationError(Event, [{
@@ -134,7 +159,8 @@ const add = async (data) => {
         message: "Invalid event data structure"
       }]);
     }
-    // Parse guests if it's a JSON string
+
+    // 2) Parse & validate guests
     if (typeof data.guests === "string") {
       try {
         data.guests = JSON.parse(data.guests);
@@ -145,21 +171,34 @@ const add = async (data) => {
         }]);
       }
     }
-
-    // Handle guests with creator validation
     if (data.guests) {
-      castedData.guests = validateGuests(data.guests, [data.createdBy.toString()]);
+      castedData.guests = validateGuests(data.guests, [
+        castedData.createdBy.toString()
+      ]);
     }
-    // Handle photos (basic validation if needed)
+
+    // 3) Handle photos array
     if (data.photos && Array.isArray(data.photos)) {
       castedData.photos = data.photos;
     }
 
-    // 1. Create and save the event first!
+    // ─── 4) GEOCODE the location ────────────────────────────────
+    try {
+      const coords = await geocodeLocation(castedData.location);
+      if (coords) {
+        castedData.latitude  = coords.latitude;
+        castedData.longitude = coords.longitude;
+      }
+    } catch (geoErr) {
+      console.error("Geocoding failed for", castedData.location, geoErr);
+      // we continue even if geocode fails; event still saves
+    }
+
+    // 5) Create & save the event
     const event = new Event(castedData);
     await event.save();
 
-    // 2. Now notify admins (event is available)
+    // 6) Notify admins (existing logic)
     await notificationService.createSharedNotification({
       type: "add_event",
       message: `A new event "${event.title}" has been created.`,
@@ -523,5 +562,6 @@ module.exports = {
   toggleEventArchive,
   updateRSVP,
   getEventsByRSVP,
+  geocodeLocation,
 };
 
