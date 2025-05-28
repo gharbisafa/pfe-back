@@ -37,6 +37,35 @@ const getById = async (req, res) => {
   }
 };
 
+// const post = async (req, res) => {
+//   try {
+//     let result = await userAccountService.add(req.data);
+//     if (!result) {
+//       res.status(400).json({
+//         error: "DATA_MISSING",
+//       });
+//       return;
+//     }
+//     res.status(201).json(result);
+//     return;
+//   } catch (error) {
+//     console.error(error);
+//     if (error instanceof DataValidationError) {
+//       res.status(400).json({
+//         error: "DATA_VALIDATION",
+//         model: error.model.modelName,
+//         fields: error.issues.map((issue) => ({
+//           kind: issue.kind,
+//           path: issue.path,
+//           value: issue.value,
+//           message: issue.message,
+//         })),
+//       });
+//     } else {
+//       res.sendStatus(500);
+//     }
+//   }
+// };
 const post = async (req, res) => {
   try {
     let result = await userAccountService.add(req.data);
@@ -46,7 +75,24 @@ const post = async (req, res) => {
       });
       return;
     }
-    res.status(201).json(result);
+
+    // Generate and send verification code
+    try {
+      await userAccountService.generateAndSendVerificationCode(result.email);
+      res.status(201).json({
+        ...result.toObject(),
+        emailSent: true,
+        message: "Account created. Please check your email for verification code."
+      });
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError);
+      // Still return success but note email failed
+      res.status(201).json({
+        ...result.toObject(),
+        emailSent: false,
+        message: "Account created but verification email failed to send"
+      });
+    }
     return;
   } catch (error) {
     console.error(error);
@@ -64,6 +110,170 @@ const post = async (req, res) => {
     } else {
       res.sendStatus(500);
     }
+  }
+};
+
+// ADD these new methods to your controller:
+
+const verifyEmail = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    
+    if (!email || !code) {
+      return res.status(400).json({
+        error: "EMAIL_AND_CODE_REQUIRED",
+        message: "Email and verification code are required"
+      });
+    }
+    
+    const result = await userAccountService.verifyEmailWithCode(email, code);
+    
+    if (!result) {
+      return res.status(400).json({
+        error: "INVALID_OR_EXPIRED_CODE",
+        message: "Invalid or expired verification code"
+      });
+    }
+    
+    res.status(200).json({
+      message: "Email verified successfully",
+      emailVerified: true
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "SERVER_ERROR",
+      message: "Internal server error"
+    });
+  }
+};
+
+const resendVerificationCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        error: "EMAIL_REQUIRED",
+        message: "Email is required"
+      });
+    }
+    
+    const userAccount = await userAccountService.getByEmail(email);
+    if (!userAccount) {
+      return res.status(404).json({
+        error: "USER_NOT_FOUND",
+        message: "User not found"
+      });
+    }
+    
+    if (userAccount.emailVerified) {
+      return res.status(400).json({
+        error: "EMAIL_ALREADY_VERIFIED",
+        message: "Email is already verified"
+      });
+    }
+    
+    try {
+      await userAccountService.generateAndSendVerificationCode(email);
+      res.status(200).json({
+        message: "Verification code sent successfully",
+        emailSent: true
+      });
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError);
+      res.status(500).json({
+        error: "EMAIL_SEND_FAILED",
+        message: "Failed to send verification email"
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "SERVER_ERROR",
+      message: "Internal server error"
+    });
+  }
+};
+
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        error: "EMAIL_REQUIRED",
+        message: "Email is required"
+      });
+    }
+    
+    try {
+      const result = await userAccountService.generateAndSendPasswordResetCode(email);
+      if (result) {
+        res.status(200).json({
+          message: "Password reset code sent to your email",
+          emailSent: true
+        });
+      } else {
+        // Don't reveal if user exists or not for security
+        res.status(200).json({
+          message: "If the email exists, a password reset code has been sent"
+        });
+      }
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError);
+      res.status(500).json({
+        error: "EMAIL_SEND_FAILED",
+        message: "Failed to send password reset email"
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "SERVER_ERROR",
+      message: "Internal server error"
+    });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({
+        error: "ALL_FIELDS_REQUIRED",
+        message: "Email, code, and new password are required"
+      });
+    }
+    
+    // Validate password format (same as your model validation)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\S]{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({
+        error: "INVALID_PASSWORD",
+        message: "Password must be at least 8 characters with uppercase, lowercase, and number"
+      });
+    }
+    
+    const result = await userAccountService.resetPasswordWithCode(email, code, newPassword);
+    
+    if (!result) {
+      return res.status(400).json({
+        error: "INVALID_OR_EXPIRED_CODE",
+        message: "Invalid or expired reset code"
+      });
+    }
+    
+    res.status(200).json({
+      message: "Password reset successfully"
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "SERVER_ERROR",
+      message: "Internal server error"
+    });
   }
 };
 
@@ -221,4 +431,8 @@ module.exports = {
   post,
   putSelf,
   deleteSelf,
+  verifyEmail,
+  resendVerificationCode,
+  forgotPassword,
+  resetPassword,
 };

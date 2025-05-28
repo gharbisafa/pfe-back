@@ -75,5 +75,9 @@ router.get(
 );
 
 
-
+// Add these to your auth routes
+router.post('/verify-email', userAccountController.verifyEmail);
+router.post('/resend-verification', userAccountController.resendVerificationCode);
+router.post('/forgot-password', userAccountController.forgotPassword);
+router.post('/reset-password', userAccountController.resetPassword);
 module.exports = router;

@@ -4,7 +4,9 @@ const { getDB } = require("../config/db");
 const mongoose = require("mongoose");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
-const { castData } = require("../utils/general");
+const { castData, generateVerificationCode } = require("../utils/general");
+const bcrypt = require('bcrypt');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailUtils');
 
 const toggleFollow = async (currentUserAccountId, targetUserAccountId) => {
   const currentUserAccount = await UserAccount.findById(currentUserAccountId);
@@ -220,6 +222,84 @@ const getFollowStats = async (userAccountId) => {
     followingCount: user.following?.length || 0,
   };
 };
+// Generate and send email verification code
+const generateAndSendVerificationCode = async (email) => {
+  const code = generateVerificationCode();
+  const userAccount = await UserAccount.findOneAndUpdate(
+    { email },
+    {
+      emailVerificationCode: code,
+      emailVerificationExpires: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+    },
+    { new: true }
+  );
+
+  if (!userAccount) return false;
+
+  await sendVerificationEmail(email, code);
+  return userAccount;
+};
+
+// Verify email with code
+const verifyEmailWithCode = async (email, code) => {
+  const userAccount = await UserAccount.findOne({
+    email,
+    emailVerificationCode: code,
+    emailVerificationExpires: { $gt: Date.now() }
+  });
+
+  if (!userAccount) return false;
+
+  userAccount.emailVerified = true;
+  userAccount.emailVerificationCode = null;
+  userAccount.emailVerificationExpires = null;
+  await userAccount.save();
+
+  return userAccount;
+};
+
+// Generate and send password reset code
+const generateAndSendPasswordResetCode = async (email) => {
+  const code = generateVerificationCode();
+  const userAccount = await UserAccount.findOneAndUpdate(
+    { email },
+    {
+      passwordResetCode: code,
+      passwordResetExpires: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+    },
+    { new: true }
+  );
+
+  if (!userAccount) return false;
+
+  await sendPasswordResetEmail(email, code);
+  return userAccount;
+};
+
+// Reset password with code
+const resetPasswordWithCode = async (email, code, newPassword) => {
+  const userAccount = await UserAccount.findOne({
+    email,
+    passwordResetCode: code,
+    passwordResetExpires: { $gt: Date.now() }
+  });
+
+  if (!userAccount) return false;
+
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+  userAccount.password = hashedPassword;
+  userAccount.passwordResetCode = null;
+  userAccount.passwordResetExpires = null;
+  await userAccount.save();
+
+  return userAccount;
+};
+
+// Check if email is verified
+const isEmailVerified = async (email) => {
+  const userAccount = await UserAccount.findOne({ email });
+  return userAccount ? userAccount.emailVerified : false;
+};
 
 
 module.exports = {
@@ -235,4 +315,9 @@ module.exports = {
   add,
   updateById,
   deleteById,
+  generateAndSendVerificationCode,
+  verifyEmailWithCode,
+  generateAndSendPasswordResetCode,
+  resetPasswordWithCode,
+  isEmailVerified,
 };
