@@ -83,6 +83,20 @@ const getUserEventMedia = async (userId) => {
 
   return media;
 };
+async function getEventsByRSVP(userId, status) {
+  // Find all RSVPs for this user+status, populate the event
+  const rsvps = await RSVP.find({ user: userId, status })
+    .populate({ 
+      path: 'event', 
+      match: { deleted: false, visibility: 'public' } 
+    })
+    .lean();
+
+  // Extract the event objects (filtering out any nulls)
+  return rsvps
+    .map(r => r.event)
+    .filter(evt => evt);
+}
 
 const getById = async (_id) => {
   let event = await Event.findById(_id).lean().exec();
@@ -508,5 +522,6 @@ module.exports = {
   toggleEventField,
   toggleEventArchive,
   updateRSVP,
+  getEventsByRSVP,
 };
 

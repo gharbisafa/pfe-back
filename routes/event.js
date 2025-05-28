@@ -21,6 +21,8 @@ router.get(
 
 router.get("/liked", passport.authenticate("jwt", { session: false }), eventController.getLikedEvents);
 router.get("/media", passport.authenticate("jwt", { session: false }), eventController.getUserEventMedia);
+router.get("/interested", passport.authenticate("jwt", { session: false }), eventController.getInterestedEvents);
+router.get("/going", passport.authenticate("jwt", { session: false }), eventController.getGoingEvents);
 
 // CREATE: Add a new event
 router.post(

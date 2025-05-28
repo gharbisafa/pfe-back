@@ -292,9 +292,34 @@ const updateRSVP = async (req, res) => {
     res.status(500).json({ error: "SERVER_ERROR" });
   }
 };
-
+const getInterestedEvents = async (req, res) => {
+  try {
+    const events = await eventService.getEventsByRSVP(
+      req.user._id,
+      'interested'
+    );
+    res.status(200).json(events);
+  } catch (err) {
+    console.error('Error fetching interested events:', err);
+    res.status(500).json({ error: 'FETCH_FAILED' });
+  }
+};
+const getGoingEvents = async (req, res) => {
+  try {
+    const events = await eventService.getEventsByRSVP(
+      req.user._id,
+      'going'
+    );
+    res.status(200).json(events);
+  } catch (err) {
+    console.error('Error fetching going events:', err);
+    res.status(500).json({ error: 'FETCH_FAILED' });
+  }
+};
 
 module.exports = {
+  getGoingEvents,
+  getInterestedEvents,
   getLikedEvents,
   getUserEventMedia,
   getMyEvents,
