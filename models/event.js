@@ -86,7 +86,7 @@
           {
             user: {
               type: mongoose.Schema.Types.ObjectId,
-              ref: "User",
+              ref: "UserAccount", // Update to reference UserAccount
               required: true,
             },
             rsvp: {
@@ -107,7 +107,7 @@
       likes: [
         {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
+          ref: "UserAccount", // Update to reference UserAccount
         },
       ],
       photos: {

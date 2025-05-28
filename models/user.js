@@ -34,12 +34,12 @@ const userSchema = mongoose.Schema(
     // 🧑‍🤝‍🧑 Followers: Users who follow this user
     followers: [{
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "UserAccount",
     }],
     // ➕ Following: Users this user is following
     following: [{
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "UserAccount",
     }],
   },
   {
