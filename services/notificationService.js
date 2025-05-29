@@ -1,6 +1,5 @@
 const Notification = require("../models/notification");
 const User = require("../models/userAccount"); // For fetching admins
-const { sendNotification } = require("./socketService");
 
 // --- Notify Functions ---
 
@@ -105,9 +104,8 @@ const createNotification = async (data) => {
     await notification.save();
 
     // Real-time emit (individual notification)
-    if (data.user) {
-      sendNotification(data.user.toString(), notification);
-    }
+    // if (data.user) {
+    // }
     return notification;
   } catch (error) {
     console.error("Error creating notification:", error);
@@ -127,12 +125,11 @@ const createSharedNotification = async (data) => {
     });
     await notification.save();
 
-    // Real-time emit to all target users
-    if (Array.isArray(data.targetUserIds)) {
-      data.targetUserIds.forEach(userId => {
-        sendNotification(userId.toString(), notification);
-      });
-    }
+    // // Real-time emit to all target users
+    // if (Array.isArray(data.targetUserIds)) {
+    //   data.targetUserIds.forEach(userId => {
+    //   });
+    // }
     return notification;
   } catch (error) {
     console.error("Error creating shared notification:", error);

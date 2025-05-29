@@ -7,8 +7,6 @@
 var app = require("../app");
 var debug = require("debug")("my-event-back:server");
 var http = require("http");
-const socketIo = require("socket.io");
-const jwt = require("jsonwebtoken");
 
 /**
  * Get port from environment and store in Express.
@@ -23,44 +21,6 @@ app.set("port", port);
 
 var server = http.createServer(app);
 
-/**
- * Set up Socket.IO server and JWT auth
- */
-const io = socketIo(server, {
-  cors: {
-    origin: "*", // Change for production
-    methods: ["GET", "POST"],
-  },
-});
-const { setSocketIo } = require("../services/socketService");
-setSocketIo(io);
-
-// JWT auth for Socket.IO
-io.use((socket, next) => {
-  const token = socket.handshake.auth?.token;
-  if (!token) return next(new Error("Authentication error"));
-  try {
-    const payload = jwt.verify(token, "YOUR_SECRET_KEY"); // CHANGE SECRET!
-    socket.user = payload;
-    next();
-  } catch (err) {
-    next(new Error("Authentication error"));
-  }
-});
-
-io.on("connection", (socket) => {
-  socket.join(socket.user.id); // Join a room named by the user ID
-  console.log("User connected:", socket.user.id);
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.user.id);
-  });
-});
-
-/**
- * Socket Service Integration
- * This makes the io instance available to other modules (e.g., notificationService)
- */
 /**
  * Listen on provided port, on all network interfaces.
  */
