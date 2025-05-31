@@ -147,6 +147,43 @@ const verifyEmail = async (req, res) => {
     });
   }
 };
+const verifyResetCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({
+        error: "EMAIL_AND_CODE_REQUIRED",
+        message: "Email and reset code are required",
+      });
+    }
+
+    const user = await userAccountService.getByEmail(email);
+
+    if (
+      !user ||
+      user.passwordResetCode !== code ||
+      !user.passwordResetExpires ||
+      user.passwordResetExpires < Date.now()
+    ) {
+      return res.status(400).json({
+        error: "INVALID_OR_EXPIRED_CODE",
+        message: "Reset code is invalid or has expired",
+      });
+    }
+
+    res.status(200).json({
+      message: "Reset code is valid",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "SERVER_ERROR",
+      message: "Internal server error",
+    });
+  }
+};
+
 
 const resendVerificationCode = async (req, res) => {
   try {
@@ -435,4 +472,5 @@ module.exports = {
   resendVerificationCode,
   forgotPassword,
   resetPassword,
+  verifyResetCode,
 };
