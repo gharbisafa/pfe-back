@@ -6,7 +6,7 @@ const { castData } = require("../utils/general");
 const { getPaginatedEvents } = require("./eventPaginationService");
 const axios = require("axios");
 const EventMedia = require("../models/eventMedia");
-const notificationService = require("./notificationService");
+// const notificationService = require("./notificationService");
 const RSVP = require("../models/rsvp"); // New RSVP model
 
 const ObjectId = mongoose.Types.ObjectId;
@@ -198,12 +198,12 @@ const add = async (data) => {
     const event = new Event(castedData);
     await event.save();
 
-    // 6) Notify admins (existing logic)
-    await notificationService.createSharedNotification({
-      type: "add_event",
-      message: `A new event "${event.title}" has been created.`,
-      event: event._id,
-    });
+    // // 6) Notify admins (existing logic)
+    // await notificationService.createSharedNotification({
+    //   type: "add_event",
+    //   message: `A new event "${event.title}" has been created.`,
+    //   event: event._id,
+    // });
 
     return event;
   } catch (error) {
@@ -302,16 +302,16 @@ const updateById = async (eventId, updateData, currentUserId) => {
     if (!updatedEvent) throw new RecordNotFoundError(Event, eventId);
 
     // Notify users
-    const event = await Event.findById(eventId).lean();
-    const guestsToNotify = event.guests.map((g) => g.user.toString());
-    const goingToNotify = event.going.map((g) => g.toString());
-    const usersToNotify = [...new Set([...guestsToNotify, ...goingToNotify])];
+    // const event = await Event.findById(eventId).lean();
+    // const guestsToNotify = event.guests.map((g) => g.user.toString());
+    // const goingToNotify = event.going.map((g) => g.toString());
+    // const usersToNotify = [...new Set([...guestsToNotify, ...goingToNotify])];
 
-    await notificationService.notifyUsers(updatedEvent, usersToNotify);
+    // await notificationService.notifyUsers(updatedEvent, usersToNotify);
 
-    if (newGuests.length > 0) {
-      await notificationService.notifyGuests(updatedEvent, newGuests);
-    }
+    // if (newGuests.length > 0) {
+    //   await notificationService.notifyGuests(updatedEvent, newGuests);
+    // }
 
     return updatedEvent;
   } catch (error) {
@@ -321,55 +321,6 @@ const updateById = async (eventId, updateData, currentUserId) => {
     throw error;
   }
 };
-// const updateById = async (eventId, updateData, currentUserId) => {
-//   try {
-//     // Cast simple fields
-//     const castedData = castData(updateData, [
-//       "title", "description", "location",
-//       "startDate", "endDate", "startTime", "endTime",
-//       "price", "bookingLink", "type", "visibility"
-//     ]);
-
-//     if (!castedData) {
-//       throw new DataValidationError(Event, [{
-//         path: "root",
-//         message: "Invalid update data structure"
-//       }]);
-//     }
-
-//     // Parse guests from string if needed
-//     let newGuests = [];
-//     if (updateData.guests) {
-//       if (typeof updateData.guests === "string") {
-//         try {
-//           updateData.guests = JSON.parse(updateData.guests);
-//         } catch {
-//           throw new DataValidationError(Event, [{
-//             path: "guests",
-//             message: "Invalid guests format. Must be a JSON array."
-//           }]);
-//         }
-//       }
-
-//       const event = await Event.findById(eventId).lean();
-//       if (!event) throw new RecordNotFoundError(Event, eventId);
-
-//       castedData.guests = validateGuests(updateData.guests, [
-//         event.createdBy.toString(),
-//         currentUserId.toString()
-//       ]);
-
-//       // Identify new guests
-//       const existingGuestIds = event.guests.map((g) => g.user.toString());
-//       newGuests = updateData.guests.filter(
-//         (g) => !existingGuestIds.includes(g.user.toString())
-//       );
-//     }
-
-//     // Add support for updating photos
-//     if (updateData.photos) {
-//       castedData.photos = updateData.photos;
-//     }
 
 //     // Update the event in the database
 //     const updatedEvent = await Event.findOneAndUpdate(
@@ -419,20 +370,20 @@ const deleteById = async (_id) => {
   event.deleted = true;
   await event.save();
 
-  // Notify attendees
-  const userIdsToNotify = [
-    ...event.guests.map((g) => g.user.toString()),
-    ...event.going.map((g) => g.toString())
-  ];
+  // // Notify attendees
+  // const userIdsToNotify = [
+  //   ...event.guests.map((g) => g.user.toString()),
+  //   ...event.going.map((g) => g.toString())
+  // ];
 
-  await notificationService.notifyEventDeletion(event, userIdsToNotify);
+  // await notificationService.notifyEventDeletion(event, userIdsToNotify);
 
-  // Notify admins
-  await notificationService.createSharedNotification({
-    type: "delete_event",
-    message: `The event "${event.title}" has been deleted.`,
-    event: event._id,
-  });
+  // // Notify admins
+  // await notificationService.createSharedNotification({
+  //   type: "delete_event",
+  //   message: `The event "${event.title}" has been deleted.`,
+  //   event: event._id,
+  // });
 
   return event;
 };
@@ -451,9 +402,9 @@ const toggleEventField = async (eventId, userId, field) => {
   } else {
     event[field].push(userId);
 
-    if (field === "likes" && event.createdBy.toString() !== userIdStr) {
-      await notificationService.notifyEventLike(eventId, event.createdBy);
-    }
+    // if (field === "likes" && event.createdBy.toString() !== userIdStr) {
+    //   await notificationService.notifyEventLike(eventId, event.createdBy);
+    // }
   }
 
   await event.save();
@@ -540,7 +491,7 @@ const updateRSVP = async (eventId, userId, status) => {
     }
 
     // Notify event creator
-    await notificationService.notifyNewRSVP(eventId, event.createdBy, status);
+    // await notificationService.notifyNewRSVP(eventId, event.createdBy, status);
 
     return existingRSVP || { event: eventId, user: userId, status };
   } catch (error) {
