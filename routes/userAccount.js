@@ -80,4 +80,5 @@ router.post('/verify-email', userAccountController.verifyEmail);
 router.post('/resend-verification', userAccountController.resendVerificationCode);
 router.post('/forgot-password', userAccountController.forgotPassword);
 router.post('/reset-password', userAccountController.resetPassword);
+router.post('/verify-reset-code', userAccountController.verifyResetCode);
 module.exports = router;

@@ -1,15 +1,10 @@
-// controllers/event.js
 const Event = require("../models/event");
 const eventService = require("../services/eventService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const notificationService = require("../services/notificationService");
+const RSVP = require("../models/rsvp");
 
-const RSVP = require("../models/rsvp"); // New RSVP model
-
-
-
- 
 const get = async (req, res) => {
   try {
     const {
@@ -24,25 +19,28 @@ const get = async (req, res) => {
       search,
     } = req.query;
 
-    const filters = { visibility: "public" , deleted: false };
+    const filters = { visibility: "public", deleted: false };
 
     if (type) filters.type = type;
     if (location) filters.location = { $regex: location, $options: "i" };
     if (search) {
       filters.$or = [
-        { title:       { $regex: search, $options: "i" } },
+        { title: { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
-        { location:    { $regex: search, $options: "i" } },
+        { location: { $regex: search, $options: "i" } },
       ];
     }
+
     if (startDate && endDate) {
-      filters.startDate = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      };
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      filters.$or = [
+        { startDate: { $lte: end }, endDate: { $gte: start } },
+        { startDate: { $gte: start, $lte: end } },
+        { endDate: { $gte: start, $lte: end } },
+      ];
     }
 
-    // 4) Build sort object
     const sort = {};
     if (sortBy) sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
@@ -56,7 +54,6 @@ const get = async (req, res) => {
     const totalPages = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
 
-    // 7) Send response
     res.status(200).json({
       page: parseInt(page),
       limit: parseInt(limit),
@@ -82,11 +79,15 @@ const getById = async (req, res) => {
   }
 };
 
-// Add Event
 const add = async (req, res) => {
   try {
-    // req.data already prepared by setData middleware
-    const result = await eventService.add(req.data);
+    const data = {
+      ...req.data,
+      startDate: new Date(req.data.startDate),
+      endDate: new Date(req.data.endDate),
+    };
+
+    const result = await eventService.add(data);
     res.status(201).json(result);
   } catch (error) {
     console.error("Event creation failed:", error);
@@ -98,8 +99,12 @@ const updateById = async (req, res) => {
   try {
     const updateData = {
       ...req.body,
-      files: req.files
+      files: req.files,
     };
+
+    if (req.body.startDate) updateData.startDate = new Date(req.body.startDate);
+    if (req.body.endDate) updateData.endDate = new Date(req.body.endDate);
+
     const result = await eventService.updateById(
       req.params.id,
       updateData,
@@ -137,12 +142,12 @@ const deleteById = async (req, res) => {
     res.sendStatus(500);
   }
 };
+
 const toggleLike = async (req, res) => {
   const { eventId } = req.params;
-  const userId = req.user.id || req.user._id; // Make sure you have auth middleware
+  const userId = req.user.id || req.user._id;
 
   try {
-    // Use the service function to toggle the like
     const event = await eventService.toggleEventField(eventId, userId, "likes");
     res.status(200).json(event);
   } catch (err) {
@@ -151,18 +156,15 @@ const toggleLike = async (req, res) => {
   }
 };
 
-//likes,going,interested
 const toggleField = async (req, res) => {
-  const { eventId } = req.params; // Changed from `id` to match route
+  const { eventId } = req.params;
   const { field } = req.body;
-
-  console.log("Toggling field:", { eventId, userId: req.user?._id, field }); // Debug
 
   try {
     const updatedEvent = await eventService.toggleEventField(
       eventId,
       req.user._id,
-      "interested" // Explicitly toggle "interested"
+      "interested"
     );
     res.status(200).json(updatedEvent);
   } catch (error) {
@@ -170,7 +172,6 @@ const toggleField = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 const getMyEvents = async (req, res) => {
   try {
@@ -184,7 +185,6 @@ const getMyEvents = async (req, res) => {
   }
 };
 
-// Get all events the user marked as "liked"
 const getLikedEvents = async (req, res) => {
   try {
     const events = await eventService.getUserEventsByField(req.user._id, "likes");
@@ -195,7 +195,6 @@ const getLikedEvents = async (req, res) => {
   }
 };
 
-// Get all media the user posted in the event media
 const getUserEventMedia = async (req, res) => {
   try {
     const media = await eventService.getUserEventMedia(req.user._id);
@@ -209,19 +208,12 @@ const getUserEventMedia = async (req, res) => {
 const notifyGuests = async (event, guests) => {
   try {
     const notifications = guests.map((guest) => {
-
-      if (!guest.user) {
-        throw new Error("Guest user is missing");
-      }
-
-      const message = `You've been invited to the event "${event.title}"`;
-
-
+      if (!guest.user) throw new Error("Guest user is missing");
       return notificationService.createNotification({
-        user: guest.user, // Ensure this is populated
+        user: guest.user,
         type: "guest_invitation",
-        message,
-        event: event._id, // Ensure this is the event ID
+        message: `You've been invited to the event "${event.title}"`,
+        event: event._id,
       });
     });
 
@@ -231,6 +223,7 @@ const notifyGuests = async (event, guests) => {
     throw new Error("NOTIFICATION_CREATION_FAILED");
   }
 };
+
 const toggleArchive = async (req, res) => {
   const { eventId } = req.params;
 
@@ -245,20 +238,14 @@ const toggleArchive = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-// Fetch RSVPs for an event with count and list
+
 const getEventRSVPs = async (req, res) => {
   const { eventId } = req.params;
 
   try {
-    // Fetch RSVPs for the given event
     const rsvps = await RSVP.find({ event: eventId }).populate("user", "name email");
-
-    // Calculate the count of RSVPs
-    const count = rsvps.length;
-
-    // Respond with the count and the list of RSVPs
     res.status(200).json({
-      count,
+      count: rsvps.length,
       rsvps,
     });
   } catch (error) {
@@ -267,10 +254,9 @@ const getEventRSVPs = async (req, res) => {
   }
 };
 
-// Update RSVP status for a user
 const updateRSVP = async (req, res) => {
   const { eventId } = req.params;
-  const { status } = req.body; // "going", "interested", or "notgoing"
+  const { status } = req.body;
   const userId = req.user._id;
 
   try {
@@ -279,37 +265,30 @@ const updateRSVP = async (req, res) => {
     }
 
     const event = await Event.findById(eventId);
-    if (!event) {
-      return res.status(404).json({ error: "Event not found" });
-    }
+    if (!event) return res.status(404).json({ error: "Event not found" });
 
     const updatedRSVP = await eventService.updateRSVP(eventId, userId, status);
-    
     await notificationService.notifyNewRSVP(eventId, event.createdBy, status);
-    res.status(200).json(updatedRSVP,{ message: "RSVP updated and notification sent successfully." });
+    res.status(200).json(updatedRSVP);
   } catch (error) {
     console.error("Error updating RSVP:", error);
     res.status(500).json({ error: "SERVER_ERROR" });
   }
 };
+
 const getInterestedEvents = async (req, res) => {
   try {
-    const events = await eventService.getEventsByRSVP(
-      req.user._id,
-      'interested'
-    );
+    const events = await eventService.getEventsByRSVP(req.user._id, 'interested');
     res.status(200).json(events);
   } catch (err) {
     console.error('Error fetching interested events:', err);
     res.status(500).json({ error: 'FETCH_FAILED' });
   }
 };
+
 const getGoingEvents = async (req, res) => {
   try {
-    const events = await eventService.getEventsByRSVP(
-      req.user._id,
-      'going'
-    );
+    const events = await eventService.getEventsByRSVP(req.user._id, 'going');
     res.status(200).json(events);
   } catch (err) {
     console.error('Error fetching going events:', err);
@@ -330,7 +309,7 @@ module.exports = {
   add,
   updateById,
   deleteById,
-  toggleField, 
+  toggleField,
   getEventRSVPs,
   updateRSVP,
 };
