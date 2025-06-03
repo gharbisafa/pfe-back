@@ -1,57 +1,93 @@
-// services/adminService.js
-
 const Event = require("../models/event");
 const EventMedia = require("../models/eventMedia");
-const User = require("../models/user");
+const UserAccount = require("../models/userAccount");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const DataValidationError = require("../errors/dataValidationError");
 const { Types: { ObjectId } } = require("mongoose");
-const BASE_URL = process.env.BASE_URL || "http://localhost:3000"; // Adjust as needed
+const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
 // ——— Users ———————————————————————————————————————————————————————
 
-/**
- * GET `/api/admin/users` → all users (optionally filter by query)
- */
-async function getUsers(filters = {}) {
-  return User.find(filters).lean();
+// GET all users with full info
+async function getUsers() {
+  const userAccounts = await UserAccount.find({ deleted: { $ne: true } })
+    .populate({
+      path: "userInfo",
+      select: "name email profileImage",
+    })
+    .lean();
+
+  return userAccounts.map(u => ({
+    _id: u._id,
+    role: u.role,
+    createdAt: u.createdAt,
+    deleted: u.deleted,
+    profileImage: u.userInfo?.profileImage ?? null,
+    name: u.userInfo?.name ?? "Unknown",
+    email: u.email ?? "Unknown",
+  }));
 }
 
-/**
- * GET `/api/admin/users/:id` → single user
- */
+// GET single user by ID with full info
 async function getUserById(userId) {
   if (!ObjectId.isValid(userId)) {
     throw new DataValidationError("Invalid User ID");
   }
-  const u = await User.findById(userId).lean();
+
+  const u = await UserAccount.findById(userId)
+    .populate({
+      path: "userInfo",
+      select: "name email profileImage",
+    })
+    .lean();
+
   if (!u) throw new RecordNotFoundError("User not found");
-  return u;
+
+  return {
+    _id: u._id,
+    role: u.role,
+    createdAt: u.createdAt,
+    deleted: u.deleted,
+    profileImage: u.userInfo?.profileImage ?? null,
+    name: u.userInfo?.name ?? "Unknown",
+    email: u.email ?? "Unknown",
+  };
 }
 
 /**
  * PUT `/api/admin/users/:id` body `{ role }` → updated UserRecord
  */
 async function updateUserRole(userId, role) {
-  const u = await User.findByIdAndUpdate(userId, { role }, { new: true }).lean();
+  const u = await UserAccount.findByIdAndUpdate(userId, { role }, { new: true })
+    .populate({
+      path: "userInfo",
+      select: "name email profileImage"
+    })
+    .lean();
+
   if (!u) throw new RecordNotFoundError("User not found");
-  return u;
+
+  return {
+    _id: u._id,
+    role: u.role,
+    createdAt: u.createdAt,
+    profileImage: u.userInfo?.profileImage || "",
+    name: u.userInfo?.name || "Unknown",
+    email: u.email || "Unknown",
+  };
 }
 
 /**
- * DELETE `/api/admin/users/:id` → soft‐delete
+ * DELETE `/api/admin/users/:id` → soft-delete
  */
 async function softDeleteUser(userId) {
-  const u = await User.findByIdAndUpdate(userId, { deleted: true }, { new: true }).lean();
+  const u = await UserAccount.findByIdAndUpdate(userId, { deleted: true }, { new: true }).lean();
   if (!u) throw new RecordNotFoundError("User not found");
   return u;
 }
 
 // ——— Events ——————————————————————————————————————————————————————
 
-/**
- * (Example) PUT `/api/admin/events/:id/ban`
- */
 async function banEvent(eventId) {
   if (!ObjectId.isValid(eventId)) {
     throw new DataValidationError("Invalid Event ID");
@@ -61,25 +97,16 @@ async function banEvent(eventId) {
   return ev;
 }
 
-/**
- * GET `/api/admin/events/deleted` → EventRecord[]
- */
 async function getDeletedEvents() {
   return Event.find({ deleted: true }).lean();
 }
 
-/**
- * PUT `/api/admin/events/restore/:id` → restored EventRecord
- */
 async function restoreEvent(eventId) {
   const ev = await Event.findByIdAndUpdate(eventId, { deleted: false }, { new: true }).lean();
   if (!ev) throw new RecordNotFoundError("Event not found");
   return ev;
 }
 
-/**
- * DELETE `/api/admin/events/:id` → hard-delete
- */
 async function hardDeleteEvent(eventId) {
   const ev = await Event.findByIdAndDelete(eventId).lean();
   if (!ev) throw new RecordNotFoundError("Event not found");
@@ -88,25 +115,16 @@ async function hardDeleteEvent(eventId) {
 
 // ——— Media ——————————————————————————————————————————————————————
 
-/**
- * GET `/api/admin/media/deleted` → MediaRecord[]
- */
 async function getDeletedMedia() {
   return EventMedia.find({ deleted: true }).lean();
 }
 
-/**
- * PUT `/api/admin/media/restore/:id` → restored MediaRecord
- */
 async function restoreMedia(mediaId) {
   const m = await EventMedia.findByIdAndUpdate(mediaId, { deleted: false }, { new: true }).lean();
   if (!m) throw new RecordNotFoundError("Media not found");
   return m;
 }
 
-/**
- * DELETE `/api/admin/media/:id` → hard-delete
- */
 async function hardDeleteMedia(mediaId) {
   const m = await EventMedia.findByIdAndDelete(mediaId).lean();
   if (!m) throw new RecordNotFoundError("Media not found");
@@ -115,11 +133,8 @@ async function hardDeleteMedia(mediaId) {
 
 // ——— Analytics —————————————————————————————————————————————————————
 
-/**
- * GET `/api/admin/analytics` → Analytics
- */
 async function getPlatformAnalytics() {
-  const totalUsers = await User.countDocuments({});
+  const totalUsers = await UserAccount.countDocuments({});
   const totalEvents = await Event.countDocuments({});
   const totalMedia = await EventMedia.countDocuments({});
   const deletedEvents = await Event.countDocuments({ deleted: true });
@@ -128,11 +143,8 @@ async function getPlatformAnalytics() {
   return { totalUsers, totalEvents, totalMedia, deletedEvents, deletedMedia };
 }
 
-// ——— NEW: fetch all events created by a given user ——————————————————
+// ——— Events by User ——————————————————————————————————————————————
 
-/**
- * GET `/api/admin/users/:id/events` → EventRecord[]
- */
 async function getEventsByUser(userId) {
   if (!ObjectId.isValid(userId)) {
     throw new DataValidationError("Invalid User ID");
@@ -145,7 +157,7 @@ async function getEventsByUser(userId) {
       events.map(ev => ({
         ...ev,
         bannerUrl: ev.photos?.[0]
-          ? `${BASE_URL}/uploads/eventMedia/${ev.photos[0]}`
+          ? `${BASE_URL}/uploads/eventPhotos/${ev.photos[0]}`
           : null
       }))
     );
@@ -154,39 +166,29 @@ async function getEventsByUser(userId) {
 async function getAllEvents() {
   return Event.find({ deleted: false })
     .populate({
-      path: "createdBy",               // → this is the UserAccount doc
-      select: "_id userInfo role",     // pick whatever you need
+      path: "createdBy",
+      select: "_id userInfo role",
       populate: {
-        path: "userInfo",               // inside UserAccount, userInfo → the actual User
+        path: "userInfo",
         select: "name email profileImage"
       }
     })
     .lean();
 }
 
-// ————————————————————————————————————————————————————————————————————————
 module.exports = {
-  // users
   getUsers,
   getUserById,
   updateUserRole,
   softDeleteUser,
-
-  // events
   banEvent,
   getDeletedEvents,
   restoreEvent,
   hardDeleteEvent,
   getAllEvents,
-
-  // media
   getDeletedMedia,
   restoreMedia,
   hardDeleteMedia,
-
-  // analytics
   getPlatformAnalytics,
-
-  // new
   getEventsByUser,
 };
