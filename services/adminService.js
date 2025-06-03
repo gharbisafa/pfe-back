@@ -6,6 +6,7 @@ const User = require("../models/user");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const DataValidationError = require("../errors/dataValidationError");
 const { Types: { ObjectId } } = require("mongoose");
+const BASE_URL = process.env.BASE_URL || "http://localhost:3000"; // Adjust as needed
 
 // ——— Users ———————————————————————————————————————————————————————
 
@@ -133,8 +134,21 @@ async function getPlatformAnalytics() {
  * GET `/api/admin/users/:id/events` → EventRecord[]
  */
 async function getEventsByUser(userId) {
-  // you may want to validate the ID first…
-  return Event.find({ createdBy: userId, deleted: false }).lean();
+  if (!ObjectId.isValid(userId)) {
+    throw new DataValidationError("Invalid User ID");
+  }
+
+  return Event.find({ createdBy: userId, deleted: false })
+    .select("title startDate endDate location photos type")
+    .lean()
+    .then(events =>
+      events.map(ev => ({
+        ...ev,
+        bannerUrl: ev.photos?.[0]
+          ? `${BASE_URL}/uploads/eventMedia/${ev.photos[0]}`
+          : null
+      }))
+    );
 }
 
 async function getAllEvents() {
