@@ -1,9 +1,9 @@
 const Event = require("../models/event");
-const eventService = require("../services/eventService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const notificationService = require("../services/notificationService");
 const RSVP = require("../models/rsvp");
+const eventService = require("../services/eventService");
 
 const get = async (req, res) => {
   try {
@@ -81,10 +81,13 @@ const getById = async (req, res) => {
 
 const add = async (req, res) => {
   try {
+    const userId = req.user._id || req.user.id; // ✅ From passport-jwt
+
     const data = {
       ...req.data,
       startDate: new Date(req.data.startDate),
       endDate: new Date(req.data.endDate),
+      createdBy: userId, // ✅ Auto-assigned host/creator
     };
 
     const result = await eventService.add(data);
@@ -94,6 +97,8 @@ const add = async (req, res) => {
     res.status(500).json({ error: "EVENT_CREATION_FAILED" });
   }
 };
+
+
 
 const updateById = async (req, res) => {
   try {
@@ -295,10 +300,51 @@ const getGoingEvents = async (req, res) => {
     res.status(500).json({ error: 'FETCH_FAILED' });
   }
 };
+const getPublicEventsByUser = async (req, res) => {
+  try {
+    const events = await Event.find({
+      createdBy: req.params.id,
+      visibility: 'public',
+      deleted: false,
+    }).select('title startDate location type photos');
+
+    res.status(200).json(events);
+  } catch (err) {
+    console.error('Error fetching public events:', err);
+    res.status(500).json({ error: 'FETCH_FAILED' });
+  }
+};
+const getUserLikedEventsById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const events = await eventService.getUserEventsByField(userId, "likes", true); // true = only public
+    res.status(200).json(events);
+  } catch (error) {
+    console.error("Error fetching liked events by user ID:", error);
+    res.status(500).json({ error: "FETCH_FAILED" });
+  }
+};
+
+const getUserGoingEventsById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const events = await eventService.getEventsByRSVP(userId, "going", true); // true = only public
+    res.status(200).json(events);
+  } catch (error) {
+    console.error("Error fetching going events by user ID:", error);
+    res.status(500).json({ error: "FETCH_FAILED" });
+  }
+};
+
+
+
 
 module.exports = {
+  getPublicEventsByUser,
   getGoingEvents,
   getInterestedEvents,
+  getUserGoingEventsById,
+  getUserLikedEventsById,
   getLikedEvents,
   getUserEventMedia,
   getMyEvents,
@@ -312,4 +358,6 @@ module.exports = {
   toggleField,
   getEventRSVPs,
   updateRSVP,
+  notifyGuests,
+  getEventRSVPs, 
 };

@@ -1,6 +1,7 @@
 const userAccountService = require("../services/userAccountService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
+const UserAccount = require("../models/userAccount"); 
 
 
 const get = async (req, res) => {
@@ -26,7 +27,7 @@ const getDeleted = async (req, res) => {
 
 const getById = async (req, res) => {
   try {
-    let result = await userAccountService.getById(req.params._id);
+    let result = await userAccountService.getById(req.params.id);
     if (!result || result.deleted) {
       res.sendStatus(404);
       return;
@@ -438,19 +439,47 @@ const getFollowing = async (req, res) => {
   }
 };
 
+const getMyFollowing = async (req, res) => {
+  try {
+    console.log("Current user ID:", req.user._id); // <-- this should log a valid Mongo ID
+    const following = await userAccountService.getFollowing(req.user._id);
+    return res.status(200).json(following);
+  } catch (error) {
+    console.error("Error in getMyFollowing:", error);
+    return res.status(500).json({ message: "Error fetching current user's following list" });
+  }
+};
+
+
+
 // Get user by ID
 const getUserById = async (req, res) => {
   try {
-    const user = await userAccountService.getById(req.params.id);
+    const user = await UserAccount.findById(req.params.id)
+      .populate({
+        path: "userInfo",
+        select: "name profileImage",
+      });
+
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ error: "USER_NOT_FOUND", message: "User not found" });
     }
-    return res.status(200).json(user);
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Error fetching user data" });
+
+    res.status(200).json({
+      _id: user._id,
+      email: user.email,
+      role: user.role,
+      userInfo: user.userInfo, // includes name and profileImage
+    });
+  } catch (err) {
+    console.error("Error in getUserById:", err);
+    res.status(500).json({
+      error: "SERVER_ERROR",
+      message: "Failed to fetch user",
+    });
   }
 };
+
 
 
 
@@ -459,6 +488,7 @@ module.exports = {
   getFollowStats,
   getFollowers,
   getFollowing,
+  getMyFollowing,
   getUserById,
   toggleFollow,
   uploadProfileImage,
@@ -473,4 +503,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyResetCode,
+
 };

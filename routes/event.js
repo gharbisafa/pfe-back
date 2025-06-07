@@ -38,7 +38,7 @@ router.post(
 router.put(
   "/:id",
   passport.authenticate("jwt", { session: false }),
-  uploadEventPhotos, 
+  uploadEventPhotos,
   eventMiddleware.validateEventData,
   eventMiddleware.isEventOwner,
   eventController.updateById
@@ -86,6 +86,23 @@ router.put(
   eventMiddleware.isEventOwner, // Ensure only the event creator can toggle archive
   eventController.toggleArchive
 );
+router.get(
+  '/user/:id/public-events'
+  , eventController.getPublicEventsByUser);
+// Public liked events by user ID
+router.get(
+  "/user/:id/liked",
+  passport.authenticate("jwt", { session: false }),
+  eventController.getUserLikedEventsById
+);
+
+// Public attending events by user ID
+router.get(
+  "/user/:id/attending",
+  passport.authenticate("jwt", { session: false }),
+  eventController.getUserGoingEventsById
+);
+
 
 
 module.exports = router;

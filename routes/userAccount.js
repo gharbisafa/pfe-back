@@ -6,6 +6,13 @@ const dashboardController = require("../controllers/dashboard");
 const passport = require("passport");
 const { uploadProfileImage } = require("../middlewares/upload");
 
+// ✅ Email & password routes — put BEFORE /:id
+router.post("/verify-email", userAccountController.verifyEmail);
+router.post("/resend-verification", userAccountController.resendVerificationCode);
+router.post("/forgot-password", userAccountController.forgotPassword);
+router.post("/reset-password", userAccountController.resetPassword);
+router.post("/verify-reset-code", userAccountController.verifyResetCode);
+
 // ✅ User activity dashboard route
 router.get(
   "/dashboard",
@@ -13,7 +20,7 @@ router.get(
   dashboardController.getUserDashboard
 );
 
-// Upload profile image
+// ✅ Upload profile image
 router.put(
   "/profile-image",
   passport.authenticate("jwt", { session: false }),
@@ -21,10 +28,10 @@ router.put(
   userAccountController.uploadProfileImage
 );
 
-// Create user
+// ✅ Create user
 router.post("/", middlewares.setData, userAccountController.post);
 
-// Update own user
+// ✅ Update own user
 router.put(
   "/:id",
   passport.authenticate("jwt", { session: false }),
@@ -32,21 +39,21 @@ router.put(
   userAccountController.putSelf
 );
 
-// Delete own user
+// ✅ Delete own user
 router.delete(
   "/:id",
   passport.authenticate("jwt", { session: false }),
   userAccountController.deleteSelf
 );
 
-// Toggle follow/unfollow another user
+// ✅ Toggle follow/unfollow another user
 router.post(
   "/follow/:id",
   passport.authenticate("jwt", { session: false }),
   userAccountController.toggleFollow
 );
 
-// ✅ Get followers & following list
+// ✅ Get followers & following stats
 router.get(
   "/:id/follow-stats",
   passport.authenticate("jwt", { session: false }),
@@ -66,8 +73,14 @@ router.get(
   passport.authenticate("jwt", { session: false }),
   userAccountController.getFollowing
 );
+// ✅ Get current user's following list
+router.get(
+  "/following",
+  passport.authenticate("jwt", { session: false }),
+  userAccountController.getMyFollowing
+);
 
-// ✅ Get user by ID
+// ✅ LAST: Get user by ID
 router.get(
   "/:id",
   passport.authenticate("jwt", { session: false }),
@@ -75,10 +88,5 @@ router.get(
 );
 
 
-// Add these to your auth routes
-router.post('/verify-email', userAccountController.verifyEmail);
-router.post('/resend-verification', userAccountController.resendVerificationCode);
-router.post('/forgot-password', userAccountController.forgotPassword);
-router.post('/reset-password', userAccountController.resetPassword);
-router.post('/verify-reset-code', userAccountController.verifyResetCode);
+
 module.exports = router;

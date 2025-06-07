@@ -12,6 +12,15 @@ const RSVP = require("../models/rsvp"); // New RSVP model
 const ObjectId = mongoose.Types.ObjectId;
 const rsvpEnum = ["yes", "no", "maybe"];
 
+function formatEventWithBanner(event) {
+  const firstPhoto = event.photos?.[0];
+  return {
+    ...event,
+    bannerUrl: firstPhoto ? `${BASE_URL}/uploads/eventPhotos/${path.basename(firstPhoto)}` : null,
+  };
+}
+
+
 
 async function getFilteredEventsWithCount({ filters, sort = {}, page = 1, limit = 10 }) {
   return await getPaginatedEvents(filters, {}, page, limit, sort);
@@ -57,20 +66,28 @@ function validateGuests(guests, userIds = []) {
 }
 
 // Get events by specific field ("likes", "going", "interested")
-const getUserEventsByField = async (userId, field) => {
+// Get events by specific field ("likes", "going", "interested")
+const getUserEventsByField = async (userId, field, publicOnly = false) => {
   if (!["likes", "going", "interested"].includes(field)) {
     throw new Error("Invalid field for user events");
   }
 
-  const events = await Event.find({
+  const query = {
     [field]: userId,
-    deleted: false, // Ensure the event is not deleted
-  })
+    deleted: false,
+  };
+
+  if (publicOnly) {
+    query.visibility = "public";
+  }
+
+  const events = await Event.find(query)
     .lean()
     .exec();
 
   return events;
 };
+
 
 // Get media the user posted in the event media
 const getUserEventMedia = async (userId) => {
@@ -98,11 +115,29 @@ async function getEventsByRSVP(userId, status) {
     .filter(evt => evt);
 }
 
-const getById = async (_id) => {
-  let event = await Event.findById(_id).lean().exec();
-  if (!event || event.deleted) return false;
+async function getById(eventId, viewerId) {
+  const event = await Event.findById(eventId)
+    .populate({
+      path: 'createdBy',
+      populate: {
+        path: 'userInfo',
+        model: 'User',
+        select: 'name email profileImage'
+      }
+    })
+    .populate({
+      path: 'guests.user',
+      model: 'UserAccount',
+      populate: {
+        path: 'userInfo',
+        model: 'User',
+        select: 'name'
+      }
+    });
+
   return event;
-};
+}
+
 
 const get = async (filter = {}, projection = {}) => {
   let events = await Event.find(
@@ -117,8 +152,10 @@ const get = async (filter = {}, projection = {}) => {
   )
     .lean()
     .exec();
-  return events;
+
+  return events.map(formatEventWithBanner);
 };
+
 
 // ─── Helper: forward-geocode via Nominatim ───────────────────────
 async function geocodeLocation(location) {
@@ -500,7 +537,21 @@ const updateRSVP = async (eventId, userId, status) => {
   }
 };
 
+
+async function getEventsByRSVP(userId, status, publicOnly = false) {
+  const rsvps = await RSVP.find({ user: userId, status }).select("event");
+  const eventIds = rsvps.map(r => r.event);
+  const query = { _id: { $in: eventIds } };
+  if (publicOnly) {
+    query.visibility = 'public';
+    query.deleted = false;
+  }
+  return await Event.find(query);
+};
+
+
 module.exports = {
+  getEventsByRSVP,
   getUserEventsByField,
   getUserEventMedia,
   getById,

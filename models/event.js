@@ -81,6 +81,7 @@ const eventSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "UserAccount",
       required: true,
+      
     },
 
     price: {

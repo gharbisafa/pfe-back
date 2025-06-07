@@ -1,6 +1,9 @@
 const Event = require("../models/event");
 const EventMedia = require("../models/eventMedia");
 const UserAccount = require("../models/userAccount");
+const User = require("../models/user"); // if needed
+const path = require("path"); // ✅ This line fixes the ReferenceError
+
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const DataValidationError = require("../errors/dataValidationError");
 const { Types: { ObjectId } } = require("mongoose");
@@ -17,16 +20,23 @@ async function getUsers() {
     })
     .lean();
 
-  return userAccounts.map(u => ({
-    _id: u._id,
-    role: u.role,
-    createdAt: u.createdAt,
-    deleted: u.deleted,
-    profileImage: u.userInfo?.profileImage ?? null,
-    name: u.userInfo?.name ?? "Unknown",
-    email: u.email ?? "Unknown",
-  }));
+  return userAccounts.map(u => {
+    const rawPath = u.userInfo?.profileImage || null;
+    const profileImage = rawPath ? `${BASE_URL}/uploads/profileImages/${path.basename(rawPath)}` : null;
+
+    return {
+      _id: u._id,
+      role: u.role,
+      createdAt: u.createdAt,
+      deleted: u.deleted,
+      profileImage,
+      name: u.userInfo?.name ?? "Unknown",
+      email: u.email ?? "Unknown",
+    };
+  });
 }
+
+
 
 // GET single user by ID with full info
 async function getUserById(userId) {
@@ -34,23 +44,26 @@ async function getUserById(userId) {
     throw new DataValidationError("Invalid User ID");
   }
 
-  const u = await UserAccount.findById(userId)
+  const user = await UserAccount.findById(userId)
     .populate({
       path: "userInfo",
-      select: "name email profileImage",
+      select: "name email profileImage"
     })
     .lean();
 
-  if (!u) throw new RecordNotFoundError("User not found");
+  if (!user) throw new RecordNotFoundError("User not found");
+
+  const rawPath = user.userInfo?.profileImage || null;
+  const profileImage = rawPath ? `${BASE_URL}/uploads/profileImages/${path.basename(rawPath)}` : null;
 
   return {
-    _id: u._id,
-    role: u.role,
-    createdAt: u.createdAt,
-    deleted: u.deleted,
-    profileImage: u.userInfo?.profileImage ?? null,
-    name: u.userInfo?.name ?? "Unknown",
-    email: u.email ?? "Unknown",
+    _id: user._id,
+    role: user.role,
+    createdAt: user.createdAt,
+    deleted: user.deleted,
+    profileImage,
+    name: user.userInfo?.name ?? "Unknown",
+    email: user.email ?? "Unknown"
   };
 }
 
