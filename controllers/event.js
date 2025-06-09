@@ -15,12 +15,12 @@ const get = async (req, res) => {
       sortBy,
       sortOrder = "asc",
       page = 1,
-      limit = 12,
+      limit = 10,
       search,
     } = req.query;
 
-    const filters = { visibility: "public", deleted: false };
-
+    const filters = { deleted: false };
+    if (!req.user) filters.visibility = "public";
     if (type) filters.type = type;
     if (location) filters.location = { $regex: location, $options: "i" };
     if (search) {
@@ -30,7 +30,6 @@ const get = async (req, res) => {
         { location: { $regex: search, $options: "i" } },
       ];
     }
-
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -44,22 +43,19 @@ const get = async (req, res) => {
     const sort = {};
     if (sortBy) sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
-    const { events, totalCount } = await eventService.getFilteredEventsWithCount({
+    const { events, pagination } = await eventService.getFilteredEventsWithCount({
       filters,
       sort,
       page,
       limit,
     });
 
-    const totalPages = Math.ceil(totalCount / limit);
-    const hasNextPage = page < totalPages;
-
     res.status(200).json({
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalCount,
-      totalPages,
-      hasNextPage,
+      page: pagination.currentPage,
+      limit: pagination.limit,
+      totalCount: pagination.totalCount,
+      totalPages: pagination.totalPages,
+      hasNextPage: pagination.hasNextPage,
       events,
     });
   } catch (error) {
@@ -359,5 +355,5 @@ module.exports = {
   getEventRSVPs,
   updateRSVP,
   notifyGuests,
-  getEventRSVPs, 
+  getEventRSVPs,
 };
