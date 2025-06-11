@@ -16,38 +16,43 @@ const get = async (req, res) => {
       sortOrder = "asc",
       page = 1,
       limit = 10,
-      search,
     } = req.query;
 
-    const filters = { deleted: false };
+    const search = req.query.search || req.query.searchTerm;
 
-    if (req.query.visibility === "public") {
-      filters.visibility = "public";
-    }
-    if (type) filters.type = type;
-    if (location) filters.location = { $regex: location, $options: "i" };
+    const filters = [{ deleted: false }];
+
+    if (req.query.visibility === "public") filters.push({ visibility: "public" });
+    if (type) filters.push({ type });
+    if (location) filters.push({ location: { $regex: location, $options: "i" } });
+
     if (search) {
-      filters.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { location: { $regex: search, $options: "i" } },
-      ];
+      filters.push({
+        $or: [
+          { title: { $regex: search, $options: "i" } },
+          { description: { $regex: search, $options: "i" } },
+          { location: { $regex: search, $options: "i" } },
+        ],
+      });
     }
+
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
-      filters.$or = [
-        { startDate: { $lte: end }, endDate: { $gte: start } },
-        { startDate: { $gte: start, $lte: end } },
-        { endDate: { $gte: start, $lte: end } },
-      ];
+      filters.push({
+        $or: [
+          { startDate: { $lte: end }, endDate: { $gte: start } },
+          { startDate: { $gte: start, $lte: end } },
+          { endDate: { $gte: start, $lte: end } },
+        ],
+      });
     }
 
     const sort = {};
     if (sortBy) sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
     const { events, pagination } = await eventService.getFilteredEventsWithCount({
-      filters,
+      filters: filters.length > 1 ? { $and: filters } : filters[0],
       sort,
       page,
       limit,
@@ -406,4 +411,5 @@ module.exports = {
   updateRSVP,
   notifyGuests,
   getEventRSVPs,
+  uploadEventPhotos,
 };

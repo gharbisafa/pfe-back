@@ -26,8 +26,36 @@ function formatEventWithBanner(event) {
 
 
 async function getFilteredEventsWithCount({ filters, sort = {}, page = 1, limit = 10 }) {
-  return await getPaginatedEvents(filters, {}, page, limit, sort);
+  const query = {
+    deleted: false,
+    visibility: filters.visibility || 'public'
+  };
+
+  if (filters.searchTerm) {
+    const regex = new RegExp(filters.searchTerm, 'i'); // case-insensitive
+    query.$or = [
+      { title: { $regex: regex } },
+      { location: { $regex: regex } },
+      { description: { $regex: regex } }
+    ];
+  }
+
+  if (filters.category) {
+    query.type = { $regex: filters.category, $options: 'i' };
+  }
+
+  if (filters.startDate || filters.endDate) {
+    query.startDate = {};
+    if (filters.startDate) query.startDate.$gte = new Date(filters.startDate);
+    if (filters.endDate) query.startDate.$lte = new Date(filters.endDate);
+  }
+
+  return await getPaginatedEvents(query, {}, page, limit, sort);
 }
+
+
+
+
 function validateGuests(guests, userIds = []) {
   if (!Array.isArray(guests)) {
     throw new Error("Guests must be an array");
