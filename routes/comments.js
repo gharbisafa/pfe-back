@@ -11,11 +11,7 @@ router.post(
 );
 
 // Get all comments for an event
-router.get(
-  "/:eventId",
-  passport.authenticate("jwt", { session: false }),
-  commentController.getCommentsByEvent
-);
+router.get("/:eventId", commentController.getCommentsByEvent);
 
 // Update a comment
 router.put(

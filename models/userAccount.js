@@ -1,12 +1,14 @@
 const mongoose = require("mongoose");
 const uniqueValidator = require("mongoose-unique-validator");
+
 const roles = ["user", "admin"];
+
 const userAccountSchema = mongoose.Schema(
   {
     email: {
       type: String,
       validate: {
-        validator: (email) => /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email),
+        validator: (email) => /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email),
         message: "invalid_email",
       },
       index: {
@@ -77,6 +79,7 @@ const userAccountSchema = mongoose.Schema(
     timestamps: { createdAt: true, updatedAt: true },
   }
 );
+
 userAccountSchema.plugin(uniqueValidator);
 
 module.exports = mongoose.model("UserAccount", userAccountSchema);

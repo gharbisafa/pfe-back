@@ -6,11 +6,23 @@ const { castData } = require("../utils/general");
 const { getPaginatedEvents } = require("./eventPaginationService");
 const axios = require("axios");
 const EventMedia = require("../models/eventMedia");
-// const notificationService = require("./notificationService");
-const RSVP = require("../models/rsvp"); // New RSVP model
+const RSVP = require("../models/rsvp");
+// Add this line:
+const Reservation = require("../models/reservation"); // Import the Reservation model
+const path = require("path");
+const BASE_URL = process.env.BASE_URL || "http://localhost:3000"; // Adjust as needed
 
 const ObjectId = mongoose.Types.ObjectId;
 const rsvpEnum = ["yes", "no", "maybe"];
+
+function formatEventWithBanner(event) {
+  const firstPhoto = event.photos?.[0];
+  return {
+    ...event,
+    bannerUrl: firstPhoto ? `${BASE_URL}/uploads/eventPhotos/${path.basename(firstPhoto)}` : null,
+  };
+}
+
 
 
 async function getFilteredEventsWithCount({ filters, sort = {}, page = 1, limit = 10 }) {
@@ -69,20 +81,29 @@ const setEventPhotos = async (eventId, photoUrls) => {
 
 
 // Get events by specific field ("likes", "going", "interested")
-const getUserEventsByField = async (userId, field) => {
+const getUserEventsByField = async (userId, field, publicOnly = false) => {
   if (!["likes", "going", "interested"].includes(field)) {
     throw new Error("Invalid field for user events");
   }
 
-  const events = await Event.find({
+  const query = {
     [field]: userId,
-    deleted: false, // Ensure the event is not deleted
-  })
+    deleted: false,
+  };
+
+  if (publicOnly) {
+    query.visibility = "public";
+  }
+
+  const events = await Event.find(query)
+    .select("title startDate photos visibility") // 👈 is this present now?
     .lean()
     .exec();
 
   return events;
 };
+
+
 
 // Get media the user posted in the event media
 const getUserEventMedia = async (userId) => {
@@ -98,9 +119,9 @@ const getUserEventMedia = async (userId) => {
 async function getEventsByRSVP(userId, status) {
   // Find all RSVPs for this user+status, populate the event
   const rsvps = await RSVP.find({ user: userId, status })
-    .populate({ 
-      path: 'event', 
-      match: { deleted: false, visibility: 'public' } 
+    .populate({
+      path: 'event',
+      match: { deleted: false, visibility: 'public' }
     })
     .lean();
 
@@ -110,10 +131,34 @@ async function getEventsByRSVP(userId, status) {
     .filter(evt => evt);
 }
 
-const getById = async (_id) => {
-  let event = await Event.findById(_id).lean().exec();
-  if (!event || event.deleted) return false;
-  return event;
+const getById = async (eventId, viewerId) => {
+  const event = await Event.findById(eventId)
+    .populate({
+      path: "createdBy",
+      populate: {
+        path: "userInfo",
+        model: "User",
+        select: "name email profileImage",
+      },
+    })
+    .populate({
+      path: "guests.user",
+      model: "UserAccount",
+      populate: {
+        path: "userInfo",
+        model: "User",
+        select: "name",
+      },
+    })
+    .lean();
+  if (!event) throw new RecordNotFoundError(Event, eventId);
+
+  // Populate guests based on reservations
+  const reservations = await Reservation.find({ event: eventId, status: "confirmed" }).select("user");
+  event.guests = reservations.map((r) => ({ user: r.user, rsvp: "yes" }));
+
+  const isLiked = event.likes && event.likes.some((like) => like.toString() === viewerId);
+  return { ...formatEventWithBanner(event), isLiked, likesCount: event.likes.length };
 };
 
 const get = async (filter = {}, projection = {}) => {
@@ -129,8 +174,10 @@ const get = async (filter = {}, projection = {}) => {
   )
     .lean()
     .exec();
-  return events;
+
+  return events.map(formatEventWithBanner);
 };
+
 
 // ─── Helper: forward-geocode via Nominatim ───────────────────────
 async function geocodeLocation(location) {
@@ -198,7 +245,7 @@ const add = async (data) => {
     try {
       const coords = await geocodeLocation(castedData.location);
       if (coords) {
-        castedData.latitude  = coords.latitude;
+        castedData.latitude = coords.latitude;
         castedData.longitude = coords.longitude;
       }
     } catch (geoErr) {
@@ -355,7 +402,7 @@ const updateById = async (eventId, updateData, currentUserId) => {
 //     await notificationService.notifyUsers(updatedEvent, usersToNotify);
 
 //     return updatedEvent;
-    
+
 //   } catch (error) {
 //     if (error instanceof mongoose.Error.ValidationError) {
 //       throw new DataValidationError(Event, Object.values(error.errors));
@@ -512,7 +559,21 @@ const updateRSVP = async (eventId, userId, status) => {
   }
 };
 
+
+async function getEventsByRSVP(userId, status, publicOnly = false) {
+  const rsvps = await RSVP.find({ user: userId, status }).select("event");
+  const eventIds = rsvps.map(r => r.event);
+  const query = { _id: { $in: eventIds } };
+  if (publicOnly) {
+    query.visibility = 'public';
+    query.deleted = false;
+  }
+  return await Event.find(query);
+};
+
+
 module.exports = {
+  getEventsByRSVP,
   getUserEventsByField,
   getUserEventMedia,
   getById,

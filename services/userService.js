@@ -1,3 +1,4 @@
+// userService.js
 const User = require("../models/user");
 const mongoose = require("mongoose");
 const DataValidationError = require("../errors/dataValidationError");
@@ -8,7 +9,7 @@ const toggleFollow = async (currentUserId, targetUserId) => {
   const currentUser = await User.findById(currentUserId);
   const targetUser = await User.findById(targetUserId);
 
-  if (!currentUser || !targetUser || currentUser.deleted || targetUser.deleted) {
+  if (!currentUser || !targetUser) {
     throw new RecordNotFoundError(User, targetUserId);
   }
 
@@ -20,17 +21,24 @@ const toggleFollow = async (currentUserId, targetUserId) => {
     targetUser.followers.pull(currentUserId);
     await currentUser.save();
     await targetUser.save();
-    return { message: "UNFOLLOWED" };
+    return {
+      message: "UNFOLLOWED",
+      followers: targetUser.followers.length,
+      isFollowing: false,
+    };
   } else {
     // Follow
     currentUser.following.push(targetUserId);
     targetUser.followers.push(currentUserId);
     await currentUser.save();
     await targetUser.save();
-    return { message: "FOLLOWED" };
+    return {
+      message: "FOLLOWED",
+      followers: targetUser.followers.length,
+      isFollowing: true,
+    };
   }
 };
-
 
 const getById = async (_id) => {
   let user = await User.findById(_id).lean().exec();
@@ -86,6 +94,7 @@ const updateById = async (_id, data, session) => {
     }
   }
 };
+
 const updateProfileImage = async (userId, imagePath) => {
   const user = await User.findById(userId);
   if (!user) {

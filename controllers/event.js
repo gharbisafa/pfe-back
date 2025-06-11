@@ -1,9 +1,9 @@
 const Event = require("../models/event");
-const eventService = require("../services/eventService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const notificationService = require("../services/notificationService");
 const RSVP = require("../models/rsvp");
+const eventService = require("../services/eventService");
 
 const get = async (req, res) => {
   try {
@@ -15,12 +15,15 @@ const get = async (req, res) => {
       sortBy,
       sortOrder = "asc",
       page = 1,
-      limit = 12,
+      limit = 10,
       search,
     } = req.query;
 
-    const filters = { visibility: "public", deleted: false };
+    const filters = { deleted: false };
 
+    if (req.query.visibility === "public") {
+      filters.visibility = "public";
+    }
     if (type) filters.type = type;
     if (location) filters.location = { $regex: location, $options: "i" };
     if (search) {
@@ -30,7 +33,6 @@ const get = async (req, res) => {
         { location: { $regex: search, $options: "i" } },
       ];
     }
-
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -44,22 +46,19 @@ const get = async (req, res) => {
     const sort = {};
     if (sortBy) sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
-    const { events, totalCount } = await eventService.getFilteredEventsWithCount({
+    const { events, pagination } = await eventService.getFilteredEventsWithCount({
       filters,
       sort,
       page,
       limit,
     });
 
-    const totalPages = Math.ceil(totalCount / limit);
-    const hasNextPage = page < totalPages;
-
     res.status(200).json({
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalCount,
-      totalPages,
-      hasNextPage,
+      page: pagination.currentPage,
+      limit: pagination.limit,
+      totalCount: pagination.totalCount,
+      totalPages: pagination.totalPages,
+      hasNextPage: pagination.hasNextPage,
       events,
     });
   } catch (error) {
@@ -81,19 +80,27 @@ const getById = async (req, res) => {
 
 const add = async (req, res) => {
   try {
+    const userId = req.user._id || req.user.id; // ✅ From passport-jwt
+
     const data = {
       ...req.data,
       startDate: new Date(req.data.startDate),
       endDate: new Date(req.data.endDate),
+      createdBy: userId, // ✅ Auto-assigned host/creator
     };
 
     const result = await eventService.add(data);
-    res.status(201).json(result);
+    res.status(201).json({
+      success: true,
+      data: result
+    });
   } catch (error) {
     console.error("Event creation failed:", error);
     res.status(500).json({ error: "EVENT_CREATION_FAILED" });
   }
 };
+
+
 
 const updateById = async (req, res) => {
   try {
@@ -149,12 +156,25 @@ const toggleLike = async (req, res) => {
 
   try {
     const event = await eventService.toggleEventField(eventId, userId, "likes");
-    res.status(200).json(event);
+
+    // Explicitly include visibility field in the response
+    const formatted = {
+      _id: event._id,
+      title: event.title,
+      visibility: event.visibility,
+      photos: event.photos,
+      startDate: event.startDate,
+      createdBy: event.createdBy,
+      likes: event.likes
+    };
+
+    res.status(200).json(formatted);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "LIKE_TOGGLE_FAILED", message: err.message });
   }
 };
+
 
 const toggleField = async (req, res) => {
   const { eventId } = req.params;
@@ -295,6 +315,45 @@ const getGoingEvents = async (req, res) => {
     res.status(500).json({ error: 'FETCH_FAILED' });
   }
 };
+const getPublicEventsByUser = async (req, res) => {
+  try {
+    const events = await Event.find({
+      createdBy: req.params.id,
+      visibility: 'public',
+      deleted: false,
+    }).select('title startDate location type photos');
+
+    res.status(200).json(events);
+  } catch (err) {
+    console.error('Error fetching public events:', err);
+    res.status(500).json({ error: 'FETCH_FAILED' });
+  }
+};
+const getUserLikedEventsById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const events = await eventService.getUserEventsByField(userId, "likes", true); // only public
+    res.status(200).json(events);
+  } catch (error) {
+    console.error("Error fetching liked events by user ID:", error);
+    res.status(500).json({ error: "FETCH_FAILED" });
+  }
+};
+
+
+const getUserGoingEventsById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const events = await eventService.getEventsByRSVP(userId, "going", true); // true = only public
+    res.status(200).json(events);
+  } catch (error) {
+    console.error("Error fetching going events by user ID:", error);
+    res.status(500).json({ error: "FETCH_FAILED" });
+  }
+};
+
+
+
 const uploadEventPhotos = async (req, res) => {
   try {
     const { eventId } = req.body;
@@ -327,8 +386,11 @@ const uploadEventPhotos = async (req, res) => {
 
 
 module.exports = {
+  getPublicEventsByUser,
   getGoingEvents,
   getInterestedEvents,
+  getUserGoingEventsById,
+  getUserLikedEventsById,
   getLikedEvents,
   getUserEventMedia,
   getMyEvents,
@@ -342,5 +404,6 @@ module.exports = {
   toggleField,
   getEventRSVPs,
   updateRSVP,
-  uploadEventPhotos,
+  notifyGuests,
+  getEventRSVPs,
 };
