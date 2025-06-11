@@ -282,10 +282,8 @@ const toggleFollow = async (req, res) => {
   try {
     const targetUserId = req.params.id;
     const currentUserId = req.user._id.toString();
-    if (targetUserId === currentUserId) return res.status(400).json({ error: "CANNOT_FOLLOW_SELF" });
-
     const result = await userAccountService.toggleFollow(currentUserId, targetUserId);
-    res.status(200).json({ message: result.message });
+    res.status(200).json(result); // Returns { message, followers, isFollowing }
   } catch (error) {
     console.error(error);
     res.sendStatus(500);

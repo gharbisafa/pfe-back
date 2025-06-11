@@ -67,11 +67,7 @@ router.get(
 );
 
 // GET BY ID: Get single event
-router.get(
-  "/:id",
-  passport.authenticate("jwt", { session: false }),
-  eventController.getById
-);
+router.get("/:id", eventController.getById);
 
 // Likes
 router.post(

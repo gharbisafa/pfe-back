@@ -6,8 +6,11 @@ const { castData } = require("../utils/general");
 const { getPaginatedEvents } = require("./eventPaginationService");
 const axios = require("axios");
 const EventMedia = require("../models/eventMedia");
-// const notificationService = require("./notificationService");
-const RSVP = require("../models/rsvp"); // New RSVP model
+const RSVP = require("../models/rsvp");
+// Add this line:
+const Reservation = require("../models/reservation"); // Import the Reservation model
+const path = require("path");
+const BASE_URL = process.env.BASE_URL || "http://localhost:3000"; // Adjust as needed
 
 const ObjectId = mongoose.Types.ObjectId;
 const rsvpEnum = ["yes", "no", "maybe"];
@@ -115,29 +118,35 @@ async function getEventsByRSVP(userId, status) {
     .filter(evt => evt);
 }
 
-async function getById(eventId, viewerId) {
+const getById = async (eventId, viewerId) => {
   const event = await Event.findById(eventId)
     .populate({
-      path: 'createdBy',
+      path: "createdBy",
       populate: {
-        path: 'userInfo',
-        model: 'User',
-        select: 'name email profileImage'
-      }
+        path: "userInfo",
+        model: "User",
+        select: "name email profileImage",
+      },
     })
     .populate({
-      path: 'guests.user',
-      model: 'UserAccount',
+      path: "guests.user",
+      model: "UserAccount",
       populate: {
-        path: 'userInfo',
-        model: 'User',
-        select: 'name'
-      }
-    });
+        path: "userInfo",
+        model: "User",
+        select: "name",
+      },
+    })
+    .lean();
+  if (!event) throw new RecordNotFoundError(Event, eventId);
 
-  return event;
-}
+  // Populate guests based on reservations
+  const reservations = await Reservation.find({ event: eventId, status: "confirmed" }).select("user");
+  event.guests = reservations.map((r) => ({ user: r.user, rsvp: "yes" }));
 
+  const isLiked = event.likes && event.likes.some((like) => like.toString() === viewerId);
+  return { ...formatEventWithBanner(event), isLiked, likesCount: event.likes.length };
+};
 
 const get = async (filter = {}, projection = {}) => {
   let events = await Event.find(
