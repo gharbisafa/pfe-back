@@ -90,7 +90,10 @@ const add = async (req, res) => {
     };
 
     const result = await eventService.add(data);
-    res.status(201).json(result);
+    res.status(201).json({
+      success: true,
+      data: result
+    });
   } catch (error) {
     console.error("Event creation failed:", error);
     res.status(500).json({ error: "EVENT_CREATION_FAILED" });
