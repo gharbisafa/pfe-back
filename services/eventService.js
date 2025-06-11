@@ -69,7 +69,6 @@ function validateGuests(guests, userIds = []) {
 }
 
 // Get events by specific field ("likes", "going", "interested")
-// Get events by specific field ("likes", "going", "interested")
 const getUserEventsByField = async (userId, field, publicOnly = false) => {
   if (!["likes", "going", "interested"].includes(field)) {
     throw new Error("Invalid field for user events");
@@ -85,11 +84,13 @@ const getUserEventsByField = async (userId, field, publicOnly = false) => {
   }
 
   const events = await Event.find(query)
+    .select("title startDate photos visibility") // 👈 is this present now?
     .lean()
     .exec();
 
   return events;
 };
+
 
 
 // Get media the user posted in the event media
@@ -106,9 +107,9 @@ const getUserEventMedia = async (userId) => {
 async function getEventsByRSVP(userId, status) {
   // Find all RSVPs for this user+status, populate the event
   const rsvps = await RSVP.find({ user: userId, status })
-    .populate({ 
-      path: 'event', 
-      match: { deleted: false, visibility: 'public' } 
+    .populate({
+      path: 'event',
+      match: { deleted: false, visibility: 'public' }
     })
     .lean();
 
@@ -232,7 +233,7 @@ const add = async (data) => {
     try {
       const coords = await geocodeLocation(castedData.location);
       if (coords) {
-        castedData.latitude  = coords.latitude;
+        castedData.latitude = coords.latitude;
         castedData.longitude = coords.longitude;
       }
     } catch (geoErr) {
@@ -389,7 +390,7 @@ const updateById = async (eventId, updateData, currentUserId) => {
 //     await notificationService.notifyUsers(updatedEvent, usersToNotify);
 
 //     return updatedEvent;
-    
+
 //   } catch (error) {
 //     if (error instanceof mongoose.Error.ValidationError) {
 //       throw new DataValidationError(Event, Object.values(error.errors));

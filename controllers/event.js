@@ -20,7 +20,10 @@ const get = async (req, res) => {
     } = req.query;
 
     const filters = { deleted: false };
-    if (!req.user) filters.visibility = "public";
+
+    if (req.query.visibility === "public") {
+      filters.visibility = "public";
+    }
     if (type) filters.type = type;
     if (location) filters.location = { $regex: location, $options: "i" };
     if (search) {
@@ -150,12 +153,25 @@ const toggleLike = async (req, res) => {
 
   try {
     const event = await eventService.toggleEventField(eventId, userId, "likes");
-    res.status(200).json(event);
+
+    // Explicitly include visibility field in the response
+    const formatted = {
+      _id: event._id,
+      title: event.title,
+      visibility: event.visibility,
+      photos: event.photos,
+      startDate: event.startDate,
+      createdBy: event.createdBy,
+      likes: event.likes
+    };
+
+    res.status(200).json(formatted);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "LIKE_TOGGLE_FAILED", message: err.message });
   }
 };
+
 
 const toggleField = async (req, res) => {
   const { eventId } = req.params;
@@ -313,13 +329,14 @@ const getPublicEventsByUser = async (req, res) => {
 const getUserLikedEventsById = async (req, res) => {
   try {
     const userId = req.params.id;
-    const events = await eventService.getUserEventsByField(userId, "likes", true); // true = only public
+    const events = await eventService.getUserEventsByField(userId, "likes", true); // only public
     res.status(200).json(events);
   } catch (error) {
     console.error("Error fetching liked events by user ID:", error);
     res.status(500).json({ error: "FETCH_FAILED" });
   }
 };
+
 
 const getUserGoingEventsById = async (req, res) => {
   try {
