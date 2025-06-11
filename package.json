@@ -28,12 +28,8 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
-<<<<<<< HEAD
     "sharp": "^0.33.3",
     "uuid": "^11.1.0"
-=======
-    "sharp": "^0.33.3"
->>>>>>> 967cde567b19b5411ff724e95320ed6beff72688
   },
   "main": "app.js",
   "repository": {

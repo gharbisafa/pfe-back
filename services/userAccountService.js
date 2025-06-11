@@ -22,6 +22,19 @@ const toggleFollow = async (currentUserAccountId, targetUserAccountId) => {
   );
 };
 
+const savePlayerId = async (userId, playerId) => {
+  const userAccount = await UserAccount.findByIdAndUpdate(
+    userId,
+    { oneSignalPlayerId: playerId },
+    { new: true }
+  );
+
+  if (!userAccount) {
+    throw new RecordNotFoundError(UserAccount, userId);
+  }
+
+  return userAccount;
+};
 
 
 const getById = async (_id) => {
@@ -320,4 +333,5 @@ module.exports = {
   generateAndSendPasswordResetCode,
   resetPasswordWithCode,
   isEmailVerified,
+  savePlayerId,
 };

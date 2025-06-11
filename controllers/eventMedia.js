@@ -9,7 +9,11 @@ const getByEventId = async (req, res) => {
     const isAdmin = req.user && req.user.role === "admin";
     const userId = req.user._id;
 
-    const media = await eventMediaService.getByEventId(eventId, userId, isAdmin);
+    const media = await eventMediaService.getByEventId(
+      eventId,
+      userId,
+      isAdmin
+    );
     if (!media || media.length === 0) {
       return res.status(404).json({ error: "No media found for the event" });
     }
@@ -23,17 +27,33 @@ const getByEventId = async (req, res) => {
 // POST: Add media to an event
 const addMedia = async (req, res) => {
   try {
-    if (!req.data || req.data.length === 0) {
-      return res.status(400).json({ error: "No media data provided" });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: "No media files provided" });
     }
 
-    const result = await eventMediaService.add(req.data);
+    const userId = req.user._id;
+    const { event } = req.body;
+
+    if (!event) {
+      return res.status(400).json({ error: "Missing eventId" }); // optional: change message to "Missing event"
+    }
+
+    const mediaEntries = req.files.map((file) => ({
+      event: event, // ✅ correct now
+      user: userId,
+      url: `${req.protocol}://${req.get("host")}/uploads/eventMedia/${file.filename}`,
+      type: file.mimetype.startsWith("video/") ? "video" : "photo",
+    }));
+
+    const result = await eventMediaService.add(mediaEntries);
     res.status(201).json(result);
   } catch (error) {
     console.error("Media addition failed:", error);
     res.status(500).json({ error: "MEDIA_CREATION_FAILED" });
   }
 };
+
+
 
 // DELETE: Soft delete media by ID
 const deleteById = async (req, res) => {

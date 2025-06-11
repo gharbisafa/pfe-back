@@ -1,6 +1,8 @@
 const EventMedia = require("../models/eventMedia");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const notificationService = require("./notificationService");
+const Event = require("../models/event"); // ✅ path to your Event model
+
 
 // Fetch all media for a specific event
 const getByEventId = async (eventId, userId, isAdmin) => {

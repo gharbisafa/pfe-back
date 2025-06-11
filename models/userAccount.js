@@ -67,6 +67,11 @@ const userAccountSchema = mongoose.Schema(
       type: Date,
       default: null,
     },
+    oneSignalPlayerId: {
+      type: String,
+      default: null,
+    },
+
   },
   {
     timestamps: { createdAt: true, updatedAt: true },

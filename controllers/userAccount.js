@@ -2,6 +2,25 @@ const userAccountService = require("../services/userAccountService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 
+const savePlayerId = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { playerId } = req.body;
+
+    if (!playerId) {
+      return res.status(400).json({ error: "PLAYER_ID_REQUIRED" });
+    }
+
+    const updatedUser = await userAccountService.savePlayerId(userId, playerId);
+    return res.status(200).json({
+      message: "Player ID saved",
+      oneSignalPlayerId: updatedUser.oneSignalPlayerId,
+    });
+  } catch (error) {
+    console.error("Failed to save OneSignal playerId:", error);
+    res.status(500).json({ error: "INTERNAL_SERVER_ERROR" });
+  }
+};
 
 const get = async (req, res) => {
   try {
@@ -372,14 +391,19 @@ const uploadProfileImage = async (req, res) => {
     if (!file) {
       return res.status(400).json({ error: "NO_IMAGE_PROVIDED" });
     }
+
+    // Create public URL for frontend and MongoDB
+    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/profileImages/${file.filename}`;
+
+    // Save public URL instead of local file path
     const updatedUser = await userAccountService.updateProfileImage(
       req.user._id,
-      file.path
+      imageUrl
     );
-    const normalizedPath = updatedUser.profileImage.replace(/\\/g, "/");
+
     res.status(200).json({
       message: "PROFILE_IMAGE_UPDATED",
-      profileImage: `${req.protocol}://${req.get("host")}/${normalizedPath}`,
+      profileImage: updatedUser.profileImage,
     });
   } catch (error) {
     console.error(error);
@@ -389,6 +413,7 @@ const uploadProfileImage = async (req, res) => {
     res.sendStatus(500);
   }
 };
+
 const toggleFollow = async (req, res) => {
   try {
     const targetUserId = req.params.id;
@@ -473,4 +498,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyResetCode,
+  savePlayerId,
 };

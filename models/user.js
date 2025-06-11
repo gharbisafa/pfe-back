@@ -24,7 +24,7 @@ const userSchema = mongoose.Schema(
     },
     profileImage: {
       type: String, // Path or full URL to the image
-      default: "",
+      default: null,
     },
     // 🔒 Device Token (for push notifications)
     deviceToken: {

@@ -1,3 +1,13 @@
+// Replace validateMediaData with:
+const validateMediaData = (req, res, next) => {
+  const { event } = req.body;
+  if (!event) {
+    return res.status(400).json({ error: "Event ID is required" });
+  }
+  next();
+};
+
+// And modify setData to auto-detect type
 const setData = async (req, res, next) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -7,8 +17,8 @@ const setData = async (req, res, next) => {
     req.data = req.files.map((file) => ({
       event: req.body.event,
       user: req.user._id,
-      type: req.body.type,
-      url: file.path,
+      type: file.mimetype.startsWith("video/") ? "video" : "photo",
+      url: `${req.protocol}://${req.get("host")}/uploads/eventMedia/${file.filename}`, // better than file.path
     }));
 
     next();
@@ -16,20 +26,6 @@ const setData = async (req, res, next) => {
     console.error("Error processing event media data:", error);
     res.status(500).json({ error: "Error processing media data" });
   }
-};
-
-const validateMediaData = (req, res, next) => {
-  const { type, event } = req.body;
-
-  if (!type || !["photo", "video"].includes(type)) {
-    return res.status(400).json({ error: "Invalid media type. Allowed types are 'photo' or 'video'" });
-  }
-
-  if (!event) {
-    return res.status(400).json({ error: "Event ID is required" });
-  }
-
-  next();
 };
 
 module.exports = {

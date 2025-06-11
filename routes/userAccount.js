@@ -6,6 +6,13 @@ const dashboardController = require("../controllers/dashboard");
 const passport = require("passport");
 const { uploadProfileImage } = require("../middlewares/upload");
 
+router.post(
+  "/save-player-id",
+  passport.authenticate("jwt", { session: false }),
+  userAccountController.savePlayerId
+);
+
+
 // ✅ User activity dashboard route
 router.get(
   "/dashboard",

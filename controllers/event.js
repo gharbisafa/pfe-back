@@ -295,6 +295,36 @@ const getGoingEvents = async (req, res) => {
     res.status(500).json({ error: 'FETCH_FAILED' });
   }
 };
+const uploadEventPhotos = async (req, res) => {
+  try {
+    const { eventId } = req.body;
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: "No photos provided" });
+    }
+
+    if (!eventId) {
+      return res.status(400).json({ error: "Missing eventId" });
+    }
+
+    const photoUrls = req.files.map((file) => {
+      return `${req.protocol}://${req.get("host")}/uploads/eventPhotos/${file.filename}`;
+    });
+
+    // ✅ Overwrite 'photos' field
+    const updatedEvent = await eventService.setEventPhotos(eventId, photoUrls);
+
+    res.status(200).json({
+      message: "Photos uploaded successfully",
+      photos: updatedEvent.photos,
+    });
+  } catch (error) {
+    console.error("Error uploading photos:", error);
+    res.status(500).json({ error: "PHOTO_UPLOAD_FAILED" });
+  }
+};
+
+
 
 module.exports = {
   getGoingEvents,
@@ -312,4 +342,5 @@ module.exports = {
   toggleField,
   getEventRSVPs,
   updateRSVP,
+  uploadEventPhotos,
 };

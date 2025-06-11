@@ -43,6 +43,13 @@ router.put(
   eventMiddleware.isEventOwner,
   eventController.updateById
 );
+router.post(
+  "/upload-front-photos",
+  passport.authenticate("jwt", { session: false }),
+  uploadEventPhotos,
+  eventController.uploadEventPhotos
+);
+
 
 // DELETE: Soft-delete event
 router.delete(

@@ -56,6 +56,18 @@ function validateGuests(guests, userIds = []) {
   });
 }
 
+const setEventPhotos = async (eventId, photoUrls) => {
+  const event = await Event.findById(eventId);
+  if (!event) throw new Error("EVENT_NOT_FOUND");
+
+  event.photos = photoUrls; // ✅ overwrite
+  await event.save();
+
+  return event;
+};
+
+
+
 // Get events by specific field ("likes", "going", "interested")
 const getUserEventsByField = async (userId, field) => {
   if (!["likes", "going", "interested"].includes(field)) {
@@ -514,5 +526,6 @@ module.exports = {
   updateRSVP,
   getEventsByRSVP,
   geocodeLocation,
+  setEventPhotos,
 };
 
