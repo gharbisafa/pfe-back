@@ -2,6 +2,7 @@ const userAccountService = require("../services/userAccountService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const UserAccount = require("../models/userAccount");
+const Users = require("../models/user"); 
 
 const savePlayerId = async (req, res) => {
   try {
@@ -128,6 +129,48 @@ const post = async (req, res) => {
     } else {
       res.sendStatus(500);
     }
+  }
+};
+const isFollowedByMe = async (req, res) => {
+  try {
+    // 1. Get current UserAccount and profile
+    const currentUserAccount = await UserAccount.findById(req.user._id);
+    if (!currentUserAccount) {
+      console.log('currentUserAccount not found:', req.user._id);
+      return res.status(401).json({ isFollowing: false });
+    }
+    const currentProfileId = currentUserAccount.userInfo?.toString();
+
+    // 2. Get target UserAccount
+    const targetUserAccount = await UserAccount.findById(req.params.id);
+    if (!targetUserAccount) {
+      console.log('targetUserAccount not found:', req.params.id);
+      return res.status(404).json({ isFollowing: false });
+    }
+    const targetProfileId = targetUserAccount.userInfo?.toString();
+
+    // 3. Get your Users doc
+    const currentUserProfile = await Users.findById(currentProfileId);
+    if (!currentUserProfile) {
+      console.log('currentUserProfile not found:', currentProfileId);
+      return res.status(404).json({ isFollowing: false });
+    }
+
+    // 4. Debug
+    console.log('currentUserAccount:', currentUserAccount);
+    console.log('targetUserAccount:', targetUserAccount);
+    console.log('currentProfileId:', currentProfileId);
+    console.log('targetProfileId:', targetProfileId);
+
+    // 5. Check if following
+    const isFollowing = currentUserProfile.following.some(
+      id => id.toString() === targetProfileId
+    );
+
+    return res.status(200).json({ isFollowing });
+  } catch (err) {
+    console.error("Error in isFollowedByMe:", err);
+    res.status(500).json({ isFollowing: false });
   }
 };
 
@@ -323,12 +366,14 @@ const toggleFollow = async (req, res) => {
 const getFollowStats = async (req, res) => {
   try {
     const stats = await userAccountService.getFollowStats(req.params.id);
+    console.log("Follow stats for user:", req.params.id, stats); // <-- ADD THIS
     res.status(200).json(stats);
   } catch (error) {
     console.error(error);
     res.sendStatus(500);
   }
 };
+
 
 const getFollowers = async (req, res) => {
   try {
@@ -402,4 +447,5 @@ module.exports = {
   getMyFollowing,
   getUserById,
   savePlayerId,
+  isFollowedByMe,
 };

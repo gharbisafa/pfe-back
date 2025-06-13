@@ -89,6 +89,7 @@ router.get(
   passport.authenticate("jwt", { session: false }),
   userAccountController.getFollowers
 );
+router.get("/:id/is-following", passport.authenticate("jwt", { session: false }), userAccountController.isFollowedByMe);
 
 // ✅ Get following list
 router.get(
