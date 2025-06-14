@@ -1,3 +1,5 @@
+const { format }=require('date-fns');
+
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
@@ -72,7 +74,31 @@ const sendPasswordResetEmail = async (email, code) => {
   });
 };
 
+async function sendInviteEmail(to, event, inviteeName) {
+  const link = `https://yourapp.com/events/${event._id}`;
+  const formattedFull = format(new Date(event.startDate), "PPpp");
+
+  const content = `
+    <h2>You’re invited to <strong>${event.title}</strong>!</h2>
+    <p>Hi ${inviteeName},</p>
+    <p>📅 ${formattedFull}<br/>📍 ${event.location}</p>
+    <p style="margin:20px 0;">
+      <a href="${link}" style="background:#6C5CE7;color:white;padding:10px 20px;border-radius:4px;text-decoration:none;">
+        View & RSVP
+      </a>
+    </p>
+  `;
+
+  await transporter.sendMail({
+    from: `"Lamma Events" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `Invitation: ${event.title}`,
+    html: lammaEmailTemplate(content),
+  });
+}
+
 module.exports = {
   sendVerificationEmail,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendInviteEmail,
 };

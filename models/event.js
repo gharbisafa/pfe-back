@@ -3,7 +3,7 @@
 const mongoose = require("mongoose");
 const uniqueValidator = require("mongoose-unique-validator");
 
-const rsvpEnum = ["yes", "no", "maybe"];
+const rsvpEnum = ["yes", "no", "maybe","pending"];
 
 const eventSchema = new mongoose.Schema(
   {

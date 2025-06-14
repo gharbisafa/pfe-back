@@ -74,12 +74,21 @@ const get = async (req, res) => {
 
 const getById = async (req, res) => {
   try {
-    const event = await eventService.getById(req.params.id, req.user?._id);
-    if (!event) return res.status(404).json({ error: "NOT_FOUND_OR_ACCESS_DENIED" });
+    // load the event, populate the guests subdocs so you get their email/name
+    const event = await Event
+      .findById(req.params.id)
+      .populate("guests.user", "userInfo email")     // ensure each guest.user has email & name
+      .populate("createdBy", "userInfo email");      // optional: load creator info
+
+    if (!event) {
+      return res.status(404).json({ error: "NOT_FOUND_OR_ACCESS_DENIED" });
+    }
+
+    // send the full event object, now including event.guests
     res.status(200).json(event);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "An error occurred while fetching the event" });
+    console.error("Error fetching event:", error);
+    res.status(500).json({ error: "FETCH_EVENT_FAILED" });
   }
 };
 
