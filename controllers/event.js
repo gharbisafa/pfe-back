@@ -74,20 +74,32 @@ const get = async (req, res) => {
 
 const getById = async (req, res) => {
   try {
-    // load the event, populate the guests subdocs so you get their email/name
-    const event = await Event
-      .findById(req.params.id)
-      .populate("guests.user", "userInfo email")     // ensure each guest.user has email & name
-      .populate("createdBy", "userInfo email");      // optional: load creator info
+    const doc = await Event.findById(req.params.id)
+      .populate({
+        path: "guests.user",
+        populate: {
+          path: "userInfo",
+          select: "name profileImage"
+        }
+      })
+      .populate({
+        path: "createdBy",
+        populate: {
+          path: "userInfo",
+          select: "name profileImage"
+        }
+      });
+    // Turn the mongoose document into a plain object
+    const event = doc.toObject();
+    // Inject a bannerUrl (first photo or fallback)
+    event.bannerUrl =
+      Array.isArray(event.photos) && event.photos.length > 0
+        ? event.photos[0]
+        : `${req.protocol}://${req.get("host")}/uploads/default-banner.jpg`;
 
-    if (!event) {
-      return res.status(404).json({ error: "NOT_FOUND_OR_ACCESS_DENIED" });
-    }
-
-    // send the full event object, now including event.guests
-    res.status(200).json(event);
-  } catch (error) {
-    console.error("Error fetching event:", error);
+    res.json(event);
+  } catch (err) {
+    console.error("Error fetching event:", err);
     res.status(500).json({ error: "FETCH_EVENT_FAILED" });
   }
 };
@@ -288,27 +300,36 @@ const getEventRSVPs = async (req, res) => {
   }
 };
 
-const updateRSVP = async (req, res) => {
+async function updateRSVP(req, res) {
   const { eventId } = req.params;
-  const { status } = req.body;
+  const { status } = req.body;       // expecting "yes" | "no" | "maybe"
   const userId = req.user._id;
 
-  try {
-    if (!["going", "interested", "notgoing"].includes(status)) {
-      return res.status(400).json({ error: "Invalid status value" });
-    }
-
-    const event = await Event.findById(eventId);
-    if (!event) return res.status(404).json({ error: "Event not found" });
-
-    const updatedRSVP = await eventService.updateRSVP(eventId, userId, status);
-    await notificationService.notifyNewRSVP(eventId, event.createdBy, status);
-    res.status(200).json(updatedRSVP);
-  } catch (error) {
-    console.error("Error updating RSVP:", error);
-    res.status(500).json({ error: "SERVER_ERROR" });
+  // 1) Validate incoming status
+  if (!["yes", "no", "maybe"].includes(status)) {
+    return res.status(400).json({ error: "Invalid RSVP value" });
   }
-};
+
+  // 2) Load the event
+  const ev = await Event.findById(eventId);
+  if (!ev) return res.status(404).json({ error: "Event not found" });
+
+  // 3) Find existing guest subdoc or push a new one
+  const idx = ev.guests.findIndex(g => g.user.equals(userId));
+  if (idx >= 0) {
+    ev.guests[idx].rsvp = status;
+  } else {
+    ev.guests.push({ user: userId, rsvp: status });
+  }
+
+  // 4) Save, then populate
+  await ev.save();
+  await ev.populate("guests.user", "userInfo email");
+
+  // 5) Return the updated guest list
+  return res.json({ guests: ev.guests });
+}
+
 
 const getInterestedEvents = async (req, res) => {
   try {

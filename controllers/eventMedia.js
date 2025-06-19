@@ -25,34 +25,59 @@ const getByEventId = async (req, res) => {
 };
 
 // POST: Add media to an event
-const addMedia = async (req, res) => {
+async function addMedia(req, res) {
   try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: "No media files provided" });
-    }
+    const mediaData = req.data; // From setData middleware
+    const eventId = req.body.event;
 
-    const userId = req.user._id;
-    const { event } = req.body;
+    // Update the event document with the new media
+    const event = await Event.findByIdAndUpdate(
+      eventId,
+      {
+        $push: { photos: { $each: mediaData.map(m => m.url) } }, // Add to photos array
+        $set: { bannerUrl: mediaData.find(m => m.type === 'photo')?.url || event.bannerUrl }, // Set banner if photo
+      },
+      { new: true, runValidators: true }
+    );
 
     if (!event) {
-      return res.status(400).json({ error: "Missing eventId" }); // optional: change message to "Missing event"
+      return res.status(404).json({ error: 'Event not found' });
     }
 
-    const mediaEntries = req.files.map((file) => ({
-      event: event, // ✅ correct now
-      user: userId,
-      url: `${req.protocol}://${req.get("host")}/uploads/eventMedia/${file.filename}`,
-      type: file.mimetype.startsWith("video/") ? "video" : "photo",
-    }));
-
-    const result = await eventMediaService.add(mediaEntries);
-    res.status(201).json(result);
+    res.status(201).json(mediaData); // Return the media data
   } catch (error) {
-    console.error("Media addition failed:", error);
-    res.status(500).json({ error: "MEDIA_CREATION_FAILED" });
+    console.error('Error adding media:', error);
+    res.status(500).json({ error: 'Error adding media' });
+  }
+}
+const addEventPhotos = async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    const ev = await Event.findById(eventId);
+    if (!ev) return res.status(404).json({ error: "Event not found" });
+
+    // Multer saved files under req.files.media (array)
+    const files = req.files.media;
+    if (!files?.length) {
+      return res.status(400).json({ error: "No files uploaded" });
+    }
+
+    // First file → new banner
+    ev.bannerUrl = files[0].filename;
+
+    // Any additional files → push into photos[]
+    const extraPhotos = files.slice(1).map(f => f.filename);
+    ev.photos = Array.isArray(ev.photos)
+      ? ev.photos.concat(extraPhotos)
+      : extraPhotos;
+
+    await ev.save();
+    return res.json(ev);
+  } catch (err) {
+    console.error("addEventPhotos error", err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
-
 
 
 // DELETE: Soft delete media by ID
@@ -103,4 +128,5 @@ module.exports = {
   deleteById,
   archiveById,
   toggleLike,
+  addEventPhotos,
 };

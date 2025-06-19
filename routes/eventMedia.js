@@ -1,12 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const passport = require("passport");
+
 const {
   getByEventId,
   addMedia,
   deleteById,
   archiveById,
   toggleLike,
+  addEventPhotos,
 } = require("../controllers/eventMedia");
 const { uploadEventMedia } = require("../middlewares/upload");
 const { setData, validateMediaData } = require("../middlewares/eventMedia");
@@ -17,6 +19,7 @@ router.post(
   passport.authenticate("jwt", { session: false }),
   uploadEventMedia,
   validateMediaData,
+  addEventPhotos,
   setData,
   addMedia   
 );

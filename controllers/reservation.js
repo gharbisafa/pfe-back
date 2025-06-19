@@ -1,4 +1,6 @@
 const reservationService = require("../services/reservationService");
+const Reservation = require('../models/reservation');
+const Event = require('../models/event');
 
 // Make a reservation for an event
 const makeReservation = async (req, res) => {
@@ -99,22 +101,47 @@ const getUserReservations = async (req, res) => {
   }
 };
 
-// Respond to a reservation
 const respondToReservation = async (req, res) => {
   const { reservationId } = req.params;
-  const { status } = req.body;
+  const { status }        = req.body;
 
-  try {
-    const response = await reservationService.respondToReservation(
-      reservationId,
-      req.user._id,
-      status
-    );
-    res.status(200).json(response);
-  } catch (error) {
-    console.error("Error responding to reservation:", error);
-    res.status(500).json({ error: error.message || "RESPOND_FAILED" });
+  // 1) update reservation status
+  const updatedRes = await Reservation.findByIdAndUpdate(
+    reservationId,
+    { status },
+    { new: true }
+  );
+  if (!updatedRes) return res.status(404).json({ error: "Reservation not found" });
+
+  // 2) adjust the Event.guests
+  if (status === "confirmed") {
+    const partyCount = updatedRes.numberOfPeople;
+    // fetch your event once
+    const ev = await Event.findById(updatedRes.event);
+    if (ev) {
+      // remove old guest
+      ev.guests = ev.guests.filter(
+        g => g.user.toString() !== updatedRes.user.toString()
+      );
+      // push your aggregated record
+      const baseName = updatedRes.userInfo?.name || updatedRes.user.toString();
+      ev.guests.push({
+        user: updatedRes.user,
+        rsvp: "yes",
+        name: partyCount > 1
+          ? `${baseName} +${partyCount - 1}`
+          : baseName
+      });
+      await ev.save();
+
+      // 🔥 instead of refetching again, just re-populate the one you already have:
+      await ev.populate("guests.user", "userInfo.name email");
+      return res.json({ reservation: updatedRes, event: ev });
+    }
   }
+
+  // 3) if you didn’t hit the if-block, just return the reservation
+  res.json({ reservation: updatedRes });
 };
 
 module.exports = {

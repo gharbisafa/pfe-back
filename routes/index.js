@@ -12,6 +12,8 @@ router.use("/reservation", require("./reservation"));
 
 router.use("/feedbacks", require("./feedbacks"));
 router.use("/comments", require("./comments"));
+router.use('/report', require('./report'));
+
 
 
 module.exports = router;

@@ -115,6 +115,7 @@ const eventSchema = new mongoose.Schema(
             enum: rsvpEnum,
             default: "maybe",
           },
+          displayName: {type: String},
         },
       ],
       validate: {
