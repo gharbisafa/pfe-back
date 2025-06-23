@@ -4,9 +4,12 @@ var path = require("path");
 var cookieParser = require("cookie-parser");
 var logger = require("morgan");
 var cors = require("cors");
+const passport = require("passport");
 require("./config/config");
+require("./config/passport");
 
-var app = express();
+var app = express();  
+app.use(passport.initialize());
 app.use(cors());
 app.use(logger("dev"));
 app.use(express.json());
@@ -16,13 +19,13 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+
 app.use("/api", require("./routes/index"));
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
 });
-
 // error handler
 app.use(function (err, req, res, next) {
   // set locals, only providing error in development

@@ -46,33 +46,42 @@ const sendVerificationEmail = async (email, code) => {
     <p>If you didn't create a Lamma account, please ignore this email.</p>
   `;
 
-  await transporter.sendMail({
-    from: `"Lamma Team"<${process.env.SMTP_USER}>`,
-    to: email,
-    subject: 'Verify Your Lamma Account',
-    html: lammaEmailTemplate(content)
-  });
+  try {
+    await transporter.sendMail({
+      from: `"Lamma Team" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: 'Verify Your Lamma Account',
+      html: lammaEmailTemplate(content),
+    });
+    console.log(`Verification email sent successfully to ${email}`);
+  } catch (error) {
+    console.error(`Failed to send verification email to ${email}:`, error);
+    throw error;
+  }
 };
 
 // Send password reset email
-const sendPasswordResetEmail = async (email, code) => {
+async function sendPasswordResetEmail(email, code) {
+  // reuse the same HTML wrapper …
+  // you can even pull the exact same content template from sendVerificationEmail
   const content = `
     <h2 style="color: #333;">Reset Your Lamma Password</h2>
-    <p>We received a request to reset your password. Here's your verification code:</p>
+    <p>We got a request to reset your password. Enter this code:</p>
     <div style="background: #f8f9fa; padding: 15px; text-align: center; margin: 20px 0; border-radius: 4px;">
       <h1 style="color: #6C5CE7; margin: 0; font-size: 28px; letter-spacing: 2px;">${code}</h1>
     </div>
-    <p style="color: #666;">This code will expire in 30 minutes.</p>
-    <p>If you didn't request this password reset, please secure your account.</p>
+    <p style="color: #666;">This code expires in 30 minutes.</p>
+    <p>If you didn't request a reset, just ignore this email.</p>
   `;
 
   await transporter.sendMail({
-    from: `"Lamma Support" <${process.env.SMTP_USER}>`,
+    from: `"Lamma Team" <${process.env.SMTP_USER}>`,
     to: email,
-    subject: 'Your Lamma Password Reset Code',
-    html: lammaEmailTemplate(content)
+    subject: "Your Lamma Password Reset Code",
+    html: lammaEmailTemplate(content),
   });
-};
+}
+
 
 async function sendInviteEmail(to, event, inviteeName) {
   const link = `https://yourapp.com/events/${event._id}`;

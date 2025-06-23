@@ -70,16 +70,16 @@ const get = async (filter = {}, projection = {}) => {
 };
 
 const getByEmail = async (email) => {
-  try{
+  try {
     let userAccount = await UserAccount.findOne({ email })
-    .populate(["userInfo"])
-    .lean()
-    .exec();
-  if (!userAccount) {
-    return false;
-  }
-  return userAccount;
-  }catch(error){
+      .populate(["userInfo"])
+      .lean()
+      .exec();
+    if (!userAccount) {
+      return false;
+    }
+    return userAccount;
+  } catch (error) {
     console.error("error", error);
   }
 
@@ -101,37 +101,35 @@ const add = async (data) => {
   const session = await db.startSession();
   try {
     session.startTransaction();
-    let user = await userService.add(data, session);
+    console.log("Creating user with data:", data);
+    let user = await userService.add({ name: data.name, phone: data.phone }, session);
     if (!user) {
-      throw new Error();
+      throw new Error("Failed to create user");
     }
-    data = castData(data, ["email", "password", "role"]);
-    if (!data) {
-      return false;
-    }
-    try {
-      const userAccount = new UserAccount({
-        ...data,
-        userInfo: user._id,
-      });
-      await userAccount.save({ session });
-      await session.commitTransaction();
-      return userAccount;
-    } catch (error) {
-      if (error instanceof mongoose.Error.ValidationError) {
-        throw new DataValidationError(UserAccount, error.errors);
-      } else {
-        throw error;
-      }
-    }
+    const hashedPassword = await bcrypt.hash(data.password, 12);
+    data = { ...castData(data, ["email", "role"]), password: hashedPassword };
+    console.log("Creating userAccount with data:", data);
+    const userAccount = new UserAccount({
+      ...data,
+      userInfo: user._id,
+      emailVerified: false, // Explicitly set to false
+      emailVerificationCode: generateVerificationCode(),
+      emailVerificationExpires: new Date(Date.now() + 30 * 60 * 1000),
+    });
+    await userAccount.save({ session });
+    await session.commitTransaction();
+    return userAccount;
   } catch (error) {
     await session.abortTransaction();
+    console.error("Error in add:", error);
+    if (error instanceof mongoose.Error.ValidationError) {
+      throw new DataValidationError(UserAccount, error.errors);
+    }
     throw error;
   } finally {
     session.endSession();
   }
 };
-
 const updateById = async (_id, data) => {
   let newData = castData(data, ["email", "password", "role", "balance"]);
   if (!newData) {
@@ -235,21 +233,26 @@ const getFollowStats = async (userAccountId) => {
     followingCount: user.following?.length || 0,
   };
 };
-// Generate and send email verification code
 const generateAndSendVerificationCode = async (email) => {
   const code = generateVerificationCode();
   const userAccount = await UserAccount.findOneAndUpdate(
     { email },
     {
       emailVerificationCode: code,
-      emailVerificationExpires: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+      emailVerificationExpires: new Date(Date.now() + 30 * 60 * 1000),
     },
     { new: true }
   );
 
   if (!userAccount) return false;
 
-  await sendVerificationEmail(email, code);
+  try {
+    await sendVerificationEmail(email, code);
+    console.log(`Verification code sent to ${email}`);
+  } catch (error) {
+    console.error(`Failed to send verification email to ${email}:`, error);
+    throw error;
+  }
   return userAccount;
 };
 

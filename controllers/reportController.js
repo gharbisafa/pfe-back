@@ -1,9 +1,18 @@
+// controllers/reportController.js
 const Report = require("../models/report");
+const Event = require("../models/event");
+const Comment = require("../models/comment");
 
+// POST /api/report
 const create = async (req, res) => {
   try {
-    const { type, targetId, reason, extra } = req.body;
-    const reporter = req.user.id;
+    const { type, targetId, reason, extra} = req.body;
+    console.log("📣 req.user is:", req.user);
+
+    // use the Mongoose virtual .id (string) for ease
+    const reporter = req.user._id;
+
+    console.log("📣 Creating report, reporter is:", reporter);
 
     const report = await Report.create({
       type,
@@ -20,9 +29,66 @@ const create = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+// GET /api/report
+// returns Report[] with reporter populated to include only userInfo.name
 const getAll = async (req, res) => {
-  const reports = await Report.find().populate("reporter", "userInfo.name").sort({ reportedAt: -1 });
-  res.json(reports);
+  try {
+    const reports = await Report.find()
+      .sort({ reportedAt: -1 })
+      .populate({
+        path: "reporter",            // 1st level: reporter → UserAccount
+        select: "userInfo",          // only grab the userInfo ObjectId
+        populate: {
+          path: "userInfo",          // 2nd level: userInfo → User
+          model: "User",             // matches mongoose.model("User", …)
+          select: "name",            // only grab the name
+        },
+      })
+      .lean();                       // convert to plain JS objects
+
+    console.log("📣 GET /api/report →", reports);
+    return res.json(reports);
+  } catch (err) {
+    console.error("Error fetching reports:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+const getById = async (req, res) => {
+  try {
+    // 1) fetch the report + reporter.name+email
+    const report = await Report.findById(req.params.id)
+      .populate({
+        path: "reporter",
+        select: "email userInfo",
+        populate: {
+          path: "userInfo",
+          model: "User",
+          select: "name",
+        },
+      })
+      .lean();
+
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    // 2) fetch the actual object they reported
+    if (report.type === "event") {
+      report.event = await Event.findById(report.targetId)
+        .select("title startDate endDate location description")
+        .lean();
+    } else {
+      report.comment = await Comment.findById(report.targetId)
+        .select("text createdAt")
+        .lean();
+    }
+
+    return res.json(report);
+  } catch (err) {
+    console.error("Error fetching single report:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 };
 
-module.exports = { create, getAll };
+module.exports = { create, getAll, getById };

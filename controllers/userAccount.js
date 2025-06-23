@@ -2,7 +2,7 @@ const userAccountService = require("../services/userAccountService");
 const DataValidationError = require("../errors/dataValidationError");
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const UserAccount = require("../models/userAccount");
-const Users = require("../models/user"); 
+const Users = require("../models/user");
 
 const savePlayerId = async (req, res) => {
   try {
@@ -65,9 +65,6 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-
-
-
 const getDeleted = async (req, res) => {
   try {
     let result = await userAccountService.getDeleted({}, { password: 0, deleted: 0 });
@@ -90,50 +87,36 @@ const getById = async (req, res) => {
   }
 };
 
+
 const post = async (req, res) => {
   try {
-    let result = await userAccountService.add(req.data);
-    if (!result) {
-      res.status(400).json({ error: "DATA_MISSING" });
-      return;
+    const { name, email, password, phone, role } = req.body;
+    if (!name || !email || !password || !phone || !role) {
+      return res.status(400).json({ error: "DATA_MISSING" });
     }
 
-    try {
-      await userAccountService.generateAndSendVerificationCode(result.email);
-      res.status(201).json({
-        ...result.toObject(),
-        emailSent: true,
-        message: "Account created. Please check your email for verification code."
-      });
-    } catch (emailError) {
-      console.error('Email sending failed:', emailError);
-      res.status(201).json({
-        ...result.toObject(),
-        emailSent: false,
-        message: "Account created but verification email failed to send"
-      });
+    const existingUser = await userAccountService.getByEmail(email);
+    if (existingUser && !existingUser.deleted) {
+      return res.status(400).json({ error: "EMAIL_ALREADY_EXISTS" });
     }
+
+    const userAccount = await userAccountService.add(req.body);
+    try {
+      await userAccountService.generateAndSendVerificationCode(email);
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError);
+      return res.status(500).json({ error: "EMAIL_SEND_FAILED", message: emailError.message });
+    }
+
+    res.status(200).json({ message: "Verification code sent. Please verify your email.", emailSent: true });
   } catch (error) {
     console.error(error);
-    if (error instanceof DataValidationError) {
-      res.status(400).json({
-        error: "DATA_VALIDATION",
-        model: error.model.modelName,
-        fields: error.issues.map((issue) => ({
-          kind: issue.kind,
-          path: issue.path,
-          value: issue.value,
-          message: issue.message,
-        })),
-      });
-    } else {
-      res.sendStatus(500);
-    }
+    res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: error.message });
   }
 };
+
 const isFollowedByMe = async (req, res) => {
   try {
-    // 1. Get current UserAccount and profile
     const currentUserAccount = await UserAccount.findById(req.user._id);
     if (!currentUserAccount) {
       console.log('currentUserAccount not found:', req.user._id);
@@ -141,7 +124,6 @@ const isFollowedByMe = async (req, res) => {
     }
     const currentProfileId = currentUserAccount.userInfo?.toString();
 
-    // 2. Get target UserAccount
     const targetUserAccount = await UserAccount.findById(req.params.id);
     if (!targetUserAccount) {
       console.log('targetUserAccount not found:', req.params.id);
@@ -149,20 +131,17 @@ const isFollowedByMe = async (req, res) => {
     }
     const targetProfileId = targetUserAccount.userInfo?.toString();
 
-    // 3. Get your Users doc
     const currentUserProfile = await Users.findById(currentProfileId);
     if (!currentUserProfile) {
       console.log('currentUserProfile not found:', currentProfileId);
       return res.status(404).json({ isFollowing: false });
     }
 
-    // 4. Debug
     console.log('currentUserAccount:', currentUserAccount);
     console.log('targetUserAccount:', targetUserAccount);
     console.log('currentProfileId:', currentProfileId);
     console.log('targetProfileId:', targetProfileId);
 
-    // 5. Check if following
     const isFollowing = currentUserProfile.following.some(
       id => id.toString() === targetProfileId
     );
@@ -178,18 +157,18 @@ const verifyEmail = async (req, res) => {
   try {
     const { email, code } = req.body;
     if (!email || !code) {
-      return res.status(400).json({ error: "EMAIL_AND_CODE_REQUIRED", message: "Email and verification code are required" });
+      return res.status(400).json({ error: "EMAIL_AND_CODE_REQUIRED" });
     }
 
-    const result = await userAccountService.verifyEmailWithCode(email, code);
-    if (!result) {
-      return res.status(400).json({ error: "INVALID_OR_EXPIRED_CODE", message: "Invalid or expired verification code" });
+    const userAccount = await userAccountService.verifyEmailWithCode(email, code);
+    if (!userAccount) {
+      return res.status(400).json({ error: "INVALID_OR_EXPIRED_CODE" });
     }
 
-    res.status(200).json({ message: "Email verified successfully", emailVerified: true });
+    res.status(200).json({ message: "Email verified and account activated.", emailVerified: true });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "SERVER_ERROR", message: "Internal server error" });
+    res.status(500).json({ error: "SERVER_ERROR", message: error.message });
   }
 };
 
@@ -328,10 +307,8 @@ const uploadProfileImage = async (req, res) => {
       return res.status(400).json({ error: "NO_IMAGE_PROVIDED" });
     }
 
-    // Create public URL for frontend and MongoDB
     const imageUrl = `${req.protocol}://${req.get("host")}/uploads/profileImages/${file.filename}`;
 
-    // Save public URL instead of local file path
     const updatedUser = await userAccountService.updateProfileImage(
       req.user._id,
       imageUrl
@@ -350,13 +327,12 @@ const uploadProfileImage = async (req, res) => {
   }
 };
 
-
 const toggleFollow = async (req, res) => {
   try {
     const targetUserId = req.params.id;
     const currentUserId = req.user._id.toString();
     const result = await userAccountService.toggleFollow(currentUserId, targetUserId);
-    res.status(200).json(result); // Returns { message, followers, isFollowing }
+    res.status(200).json(result);
   } catch (error) {
     console.error(error);
     res.sendStatus(500);
@@ -366,14 +342,13 @@ const toggleFollow = async (req, res) => {
 const getFollowStats = async (req, res) => {
   try {
     const stats = await userAccountService.getFollowStats(req.params.id);
-    console.log("Follow stats for user:", req.params.id, stats); // <-- ADD THIS
+    console.log("Follow stats for user:", req.params.id, stats);
     res.status(200).json(stats);
   } catch (error) {
     console.error(error);
     res.sendStatus(500);
   }
 };
-
 
 const getFollowers = async (req, res) => {
   try {
