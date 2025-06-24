@@ -7,20 +7,48 @@ const RecordNotFoundError = require("../errors/recordNotFoundError");
 const { castData, generateVerificationCode } = require("../utils/general");
 const bcrypt = require('bcrypt');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailUtils');
+const User = require("../models/user");
+const FollowModel = require("../models/follow");
 
-const toggleFollow = async (currentUserAccountId, targetUserAccountId) => {
-  const currentUserAccount = await UserAccount.findById(currentUserAccountId);
-  const targetUserAccount = await UserAccount.findById(targetUserAccountId);
+async function toggleFollow(currentUserAccountId, targetUserAccountId) {
+  try {
+    console.log("[Service] toggleFollow:", currentUserAccountId, "→", targetUserAccountId);
 
-  if (!currentUserAccount || !targetUserAccount || currentUserAccount.deleted || targetUserAccount.deleted) {
-    throw new RecordNotFoundError(UserAccount, targetUserAccountId);
+    // See if we already have a record
+    const existing = await FollowModel.findOne({
+      follower: currentUserAccountId,
+      followee: targetUserAccountId,
+    });
+
+    let isFollowing;
+    if (existing) {
+      // Unfollow
+      await existing.deleteOne();
+      isFollowing = false;
+      console.log("[Service] unfollowed");
+    } else {
+      // Follow
+      await FollowModel.create({
+        follower: currentUserAccountId,
+        followee: targetUserAccountId,
+      });
+      isFollowing = true;
+      console.log("[Service] followed");
+    }
+
+    // Re-compute follower count
+    const followers = await FollowModel.countDocuments({
+      followee: targetUserAccountId,
+    });
+
+    console.log("[Service] new follower count:", followers);
+    return { isFollowing, followers };
+  } catch (err) {
+    console.error("[Service] toggleFollow error:", err);
+    throw err;
   }
+}
 
-  return await userService.toggleFollow(
-    currentUserAccount.userInfo.toString(),
-    targetUserAccount.userInfo.toString()
-  );
-};
 
 const savePlayerId = async (userId, playerId) => {
   const userAccount = await UserAccount.findByIdAndUpdate(
@@ -187,52 +215,63 @@ const updateProfileImage = async (userAccountId, imagePath) => {
   const updatedUser = await userService.updateProfileImage(userAccount.userInfo, imagePath);
   return updatedUser;
 };
-// Get followers list of a user
-const getFollowers = async (_id) => {
-  // Find the user account by ID and populate the followers
-  const userAccount = await UserAccount.findById(_id).populate({
-    path: "userInfo",
-    select: "followers", // Include the followers array
-  }).lean();
 
-  if (!userAccount || !userAccount.userInfo) {
-    throw new RecordNotFoundError(UserAccount, _id);
-  }
+async function getFollowers(userId) {
+  const docs = await FollowModel
+    .find({ followee: userId })
+    .populate({
+      path: "follower",
+      // first populate the follower field from FollowModel,
+      // then populate its userInfo sub‐field
+      populate: {
+        path: "userInfo",
+        select: "name profileImage"
+      },
+      select: "userInfo"
+    })
+    .lean();
 
-  const followers = await userService.get({ "_id": { $in: userAccount.userInfo.followers } });
-  return followers;
-};
-// Get following list of a user
-const getFollowing = async (_id) => {
-  // Find the user account by ID and populate the following list
-  const userAccount = await UserAccount.findById(_id).populate({
-    path: "userInfo",
-    select: "following", // Include the following array
-  }).lean();
+  return docs
+    .filter(d => d.follower && d.follower.userInfo)  // guard against any missing data
+    .map(d => ({
+      _id: d.follower._id,
+      userInfo: {
+        name: d.follower.userInfo.name,
+        profileImage: d.follower.userInfo.profileImage,
+      },
+    }));
+}
 
-  if (!userAccount || !userAccount.userInfo) {
-    throw new RecordNotFoundError(UserAccount, _id);
-  }
+async function getFollowing(userId) {
+  const docs = await FollowModel
+    .find({ follower: userId })
+    .populate({
+      path: "followee",
+      populate: {
+        path: "userInfo",
+        select: "name profileImage"
+      },
+      select: "userInfo"
+    })
+    .lean();
 
-  const following = await userService.get({ "_id": { $in: userAccount.userInfo.following } });
-  return following;
-};
-const getFollowStats = async (userAccountId) => {
-  const userAccount = await UserAccount.findById(userAccountId)
-    .populate("userInfo")
-    .exec();
+  return docs
+    .filter(d => d.followee && d.followee.userInfo)
+    .map(d => ({
+      _id: d.followee._id,
+      userInfo: {
+        name: d.followee.userInfo.name,
+        profileImage: d.followee.userInfo.profileImage,
+      },
+    }));
+}
 
-  if (!userAccount || userAccount.deleted) {
-    throw new RecordNotFoundError(UserAccount, userAccountId);
-  }
+async function getFollowStats(userId) {
+  const followersCount = await FollowModel.countDocuments({ followee: userId });
+  const followingCount = await FollowModel.countDocuments({ follower: userId });
+  return { followersCount, followingCount };
+}
 
-  const user = userAccount.userInfo;
-
-  return {
-    followersCount: user.followers?.length || 0,
-    followingCount: user.following?.length || 0,
-  };
-};
 const generateAndSendVerificationCode = async (email) => {
   const code = generateVerificationCode();
   const userAccount = await UserAccount.findOneAndUpdate(

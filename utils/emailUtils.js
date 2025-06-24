@@ -105,7 +105,7 @@ async function sendInviteEmail(to, event, inviteeName) {
     html: lammaEmailTemplate(content),
   });
 }
-
+  
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,

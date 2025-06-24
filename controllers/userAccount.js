@@ -4,6 +4,8 @@ const RecordNotFoundError = require("../errors/recordNotFoundError");
 const UserAccount = require("../models/userAccount");
 const Users = require("../models/user");
 
+
+
 const savePlayerId = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -350,23 +352,27 @@ const getFollowStats = async (req, res) => {
   }
 };
 
-const getFollowers = async (req, res) => {
-  try {
-    const followers = await userAccountService.getFollowers(req.params.id);
-    res.status(200).json(followers);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error fetching followers" });
-  }
-};
 
 const getFollowing = async (req, res) => {
   try {
-    const following = await userAccountService.getFollowing(req.params.id);
-    res.status(200).json(following);
-  } catch (error) {
-    console.error(error);
+    const list = await userAccountService.getFollowing(req.params.id);
+    // tell the browser “never cache this, always re‐fetch”
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.json(list);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Error fetching following" });
+  }
+};
+
+const getFollowers = async (req, res) => {
+  try {
+    const list = await userAccountService.getFollowers(req.params.id);
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.json(list);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching followers" });
   }
 };
 

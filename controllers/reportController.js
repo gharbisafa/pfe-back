@@ -56,7 +56,6 @@ const getAll = async (req, res) => {
 };
 const getById = async (req, res) => {
   try {
-    // 1) fetch the report + reporter.name+email
     const report = await Report.findById(req.params.id)
       .populate({
         path: "reporter",
@@ -68,19 +67,25 @@ const getById = async (req, res) => {
         },
       })
       .lean();
+    if (!report) return res.status(404).json({ message: "Report not found" });
 
-    if (!report) {
-      return res.status(404).json({ message: "Report not found" });
-    }
-
-    // 2) fetch the actual object they reported
     if (report.type === "event") {
       report.event = await Event.findById(report.targetId)
         .select("title startDate endDate location description")
         .lean();
     } else {
+      // ◀️ HERE: fetch the actual comment body
       report.comment = await Comment.findById(report.targetId)
-        .select("text createdAt")
+        .select("message createdAt author")
+        .populate({
+          path: "author",
+          select: "userInfo",
+          populate: {
+            path: "userInfo",
+            model: "User",
+            select: "name",
+          },
+        })
         .lean();
     }
 

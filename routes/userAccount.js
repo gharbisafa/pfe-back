@@ -91,9 +91,13 @@ router.get(
   passport.authenticate("jwt", { session: false }),
   userAccountController.getFollowers
 );
-router.get("/:id/is-following", passport.authenticate("jwt", { session: false }), userAccountController.isFollowedByMe);
+router.get(
+  "/:id/is-following",
+   passport.authenticate("jwt", { session: false }),
+    userAccountController.isFollowedByMe
+  );
 
-// ✅ Get following list
+// ✅ Get following list 
 router.get(
   "/:id/following",
   passport.authenticate("jwt", { session: false }),
