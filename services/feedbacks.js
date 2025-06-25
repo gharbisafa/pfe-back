@@ -1,75 +1,73 @@
+// services/feedbacks.js
+const mongoose = require("mongoose");
 const Feedback = require("../models/feedbacks");
 const Event = require("../models/event");
 
-const addFeedback = async (eventId, userId, rating, message) => {
-  // Ensure the event exists
-  const event = await Event.findById(eventId);
-  if (!event) {
-    throw new Error("Event not found");
-  }
+/** Recalculate and persist avg & count */
+async function _recalcStats(eventId) {
+  const stats = await Feedback.aggregate([
+    // need 'new' here to construct an ObjectId instance
+    { $match: { event: new mongoose.Types.ObjectId(eventId) } },
+    { $group: { _id: null, avg: { $avg: "$rating" }, cnt: { $sum: 1 } } }
+  ]);
+  const { avg = 0, cnt = 0 } = stats[0] || {};
+  await Event.findByIdAndUpdate(eventId, {
+    averageRating: avg,
+    feedbackCount: cnt
+  });
+}
 
-  // Check if the user already left feedback
-  const existingFeedback = await Feedback.findOne({ event: eventId, user: userId });
-  if (existingFeedback) {
+async function addFeedback(eventId, userId, rating, message) {
+  // ensure event exists
+  const event = await Event.findById(eventId);
+  if (!event) throw new Error("Event not found");
+
+  // one‐per‐user
+  if (await Feedback.exists({ event: eventId, user: userId })) {
     throw new Error("You have already submitted feedback for this event.");
   }
 
-  // Create and save the feedback
-  const feedback = await Feedback.create({
-    event: eventId,
-    user: userId, // Reference to UserAccount
-    rating,
-    message,
-  });
-
+  const feedback = await Feedback.create({ event: eventId, user: userId, rating, message });
+  await _recalcStats(eventId);
   return feedback;
-};
+}
 
-const getFeedbackByEvent = async (eventId) => {
-  // Fetch feedbacks and populate the user field from UserAccount
-  const feedbacks = await Feedback.find({ event: eventId }).populate("user", "email role");
-  return feedbacks;
-};
+async function getFeedbackByEvent(eventId) {
+  return Feedback.find({ event: eventId })
+    .populate("user", "email profileImage") // pull in user info
+    .sort({ createdAt: -1 });
+}
 
-const updateFeedback = async (feedbackId, userId, rating, message) => {
+async function updateFeedback(feedbackId, userId, rating, message) {
   const feedback = await Feedback.findOneAndUpdate(
     { _id: feedbackId, user: userId },
     { rating, message },
-    { new: true } // Return the updated document
+    { new: true }
   );
+  if (!feedback) throw new Error("Feedback not found or unauthorized");
 
-  if (!feedback) {
-    throw new Error("Feedback not found or unauthorized");
-  }
-
+  await _recalcStats(feedback.event);
   return feedback;
-};
+}
 
-const deleteFeedback = async (feedbackId, userId) => {
+async function deleteFeedback(feedbackId, userId) {
   const feedback = await Feedback.findOneAndDelete({ _id: feedbackId, user: userId });
+  if (!feedback) throw new Error("Feedback not found or unauthorized");
 
-  if (!feedback) {
-    throw new Error("Feedback not found or unauthorized");
-  }
-};
+  await _recalcStats(feedback.event);
+}
 
-const toggleFeedbackLike = async (feedbackId, userId) => {
+async function toggleFeedbackLike(feedbackId, userId) {
   const feedback = await Feedback.findById(feedbackId);
-  if (!feedback) {
-    throw new Error("Feedback not found");
-  }
+  if (!feedback) throw new Error("Feedback not found");
 
-  // Toggle like
-  const userIndex = feedback.likes.indexOf(userId);
-  if (userIndex === -1) {
-    feedback.likes.push(userId); // Add the user to likes
-  } else {
-    feedback.likes.splice(userIndex, 1); // Remove the user from likes
-  }
+  const idx = feedback.likes.indexOf(userId);
+  if (idx === -1) feedback.likes.push(userId);
+  else feedback.likes.splice(idx, 1);
 
   await feedback.save();
   return feedback;
-};
+}
 
 module.exports = {
   addFeedback,

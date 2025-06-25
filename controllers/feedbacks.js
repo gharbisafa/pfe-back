@@ -1,79 +1,111 @@
+// controllers/feedbacks.js
 const feedbacksService = require("../services/feedbacks");
 
-// Add feedback for an event
 const addFeedback = async (req, res) => {
-  try {
-    const { eventId } = req.params;
-    const { rating, message } = req.body;
-    const userId = req.user._id; // UserAccount ID from authentication
+  const { eventId } = req.params;
+  const { rating, message } = req.body;
+  const userId = req.user._id;
 
+  try {
     const feedback = await feedbacksService.addFeedback(eventId, userId, rating, message);
-    res.status(201).json(feedback);
-  } catch (error) {
-    console.error("Error adding feedback:", error);
-    res.status(500).json({ error: "FEEDBACK_CREATION_FAILED" });
+    return res.status(201).json(feedback);
+  } catch (err) {
+    console.error("Error adding feedback:", err);
+    if (err.message === "Event not found") {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.message.includes("already submitted")) {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: "FEEDBACK_CREATION_FAILED" });
   }
 };
 
-// Get all feedback for an event
 const getFeedbackByEvent = async (req, res) => {
+  const { eventId } = req.params;
   try {
-    const { eventId } = req.params;
-
     const feedbacks = await feedbacksService.getFeedbackByEvent(eventId);
-    res.status(200).json(feedbacks);
-  } catch (error) {
-    console.error("Error fetching feedback:", error);
-    res.status(500).json({ error: "FETCH_FAILED" });
+    return res.status(200).json(feedbacks);
+  } catch (err) {
+    console.error("Error fetching feedback:", err);
+    return res.status(500).json({ error: "FETCH_FAILED" });
   }
 };
 
-// Update feedback
+// New: fetch just the aggregates
+const getEventRating = async (req, res) => {
+  const { eventId } = req.params;
+  try {
+    const { averageRating, feedbackCount } = await feedbacksService.getEventRating(eventId);
+    return res.status(200).json({ averageRating, feedbackCount });
+  } catch (err) {
+    console.error("Error fetching rating:", err);
+    if (err.message === "Event not found") {
+      return res.status(404).json({ error: err.message });
+    }
+    return res.status(500).json({ error: "RATING_FETCH_FAILED" });
+  }
+};
+
 const updateFeedback = async (req, res) => {
-  try {
-    const { feedbackId } = req.params;
-    const { rating, message } = req.body;
-    const userId = req.user._id; // UserAccount ID from authentication
+  const { feedbackId } = req.params;
+  const { rating, message } = req.body;
+  const userId = req.user._id;
 
-    const updatedFeedback = await feedbacksService.updateFeedback(feedbackId, userId, rating, message);
-    res.status(200).json(updatedFeedback);
-  } catch (error) {
-    console.error("Error updating feedback:", error);
-    res.status(500).json({ error: "UPDATE_FAILED" });
+  try {
+    const updated = await feedbacksService.updateFeedback(feedbackId, userId, rating, message);
+    return res.status(200).json(updated);
+  } catch (err) {
+    console.error("Error updating feedback:", err);
+    if (err.message.includes("not found")) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.message.includes("unauthorized")) {
+      return res.status(403).json({ error: err.message });
+    }
+    return res.status(500).json({ error: "UPDATE_FAILED" });
   }
 };
 
-// Delete feedback
 const deleteFeedback = async (req, res) => {
-  try {
-    const { feedbackId } = req.params;
-    const userId = req.user._id; // UserAccount ID from authentication
+  const { feedbackId } = req.params;
+  const userId = req.user._1d;
 
+  try {
     await feedbacksService.deleteFeedback(feedbackId, userId);
-    res.status(200).json({ message: "Feedback deleted successfully." });
-  } catch (error) {
-    console.error("Error deleting feedback:", error);
-    res.status(500).json({ error: "DELETE_FAILED" });
+    return res.status(200).json({ message: "Feedback deleted successfully." });
+  } catch (err) {
+    console.error("Error deleting feedback:", err);
+    if (err.message.includes("not found")) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.message.includes("unauthorized")) {
+      return res.status(403).json({ error: err.message });
+    }
+    return res.status(500).json({ error: "DELETE_FAILED" });
   }
 };
 
-// Toggle like on feedback
 const toggleFeedbackLike = async (req, res) => {
-  try {
-    const { feedbackId } = req.params;
-    const userId = req.user._id; // UserAccount ID from authentication
+  const { feedbackId } = req.params;
+  const userId = req.user._id;
 
-    const updatedFeedback = await feedbacksService.toggleFeedbackLike(feedbackId, userId);
-    res.status(200).json(updatedFeedback);
-  } catch (error) {
-    console.error("Error toggling like:", error);
-    res.status(500).json({ error: "TOGGLE_LIKE_FAILED" });
+  try {
+    const updated = await feedbacksService.toggleFeedbackLike(feedbackId, userId);
+    return res.status(200).json(updated);
+  } catch (err) {
+    console.error("Error toggling like:", err);
+    if (err.message === "Feedback not found") {
+      return res.status(404).json({ error: err.message });
+    }
+    return res.status(500).json({ error: "TOGGLE_LIKE_FAILED" });
   }
 };
 
 module.exports = {
   addFeedback,
   getFeedbackByEvent,
+  getEventRating,     // <— new
   updateFeedback,
   deleteFeedback,
   toggleFeedbackLike,

@@ -3,7 +3,7 @@
 const mongoose = require("mongoose");
 const uniqueValidator = require("mongoose-unique-validator");
 
-const rsvpEnum = ["yes", "no", "maybe","pending"];
+const rsvpEnum = ["yes", "no", "maybe", "pending"];
 
 const eventSchema = new mongoose.Schema(
   {
@@ -81,7 +81,7 @@ const eventSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "UserAccount",
       required: true,
-      
+
     },
 
     price: {
@@ -115,7 +115,7 @@ const eventSchema = new mongoose.Schema(
             enum: rsvpEnum,
             default: "maybe",
           },
-          displayName: {type: String},
+          displayName: { type: String },
         },
       ],
       validate: {
@@ -141,6 +141,14 @@ const eventSchema = new mongoose.Schema(
         "Maximum 3 photos allowed when creating the event.",
       ],
     },
+    averageRating: {
+       type: Number,
+        default: 0
+       },
+    feedbackCount: {
+       type: Number,
+        default: 0 
+      },
 
     deleted: {
       type: Boolean,
