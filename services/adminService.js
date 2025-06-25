@@ -1,8 +1,9 @@
+// src/services/adminService.js
 const Event = require("../models/event");
 const EventMedia = require("../models/eventMedia");
 const UserAccount = require("../models/userAccount");
 const User = require("../models/user"); // if needed
-const path = require("path"); // ✅ This line fixes the ReferenceError
+const path = require("path");
 
 const RecordNotFoundError = require("../errors/recordNotFoundError");
 const DataValidationError = require("../errors/dataValidationError");
@@ -35,8 +36,6 @@ async function getUsers() {
     };
   });
 }
-
-
 
 // GET single user by ID with full info
 async function getUserById(userId) {
@@ -97,6 +96,45 @@ async function softDeleteUser(userId) {
   const u = await UserAccount.findByIdAndUpdate(userId, { deleted: true }, { new: true }).lean();
   if (!u) throw new RecordNotFoundError("User not found");
   return u;
+}
+
+/**
+ * PUT `/api/admin/users/:id/ban` body `{ banned }` → updated UserRecord
+ */
+async function updateUserStatus(userId, banned) {
+  if (!ObjectId.isValid(userId)) {
+    throw new DataValidationError("Invalid User ID");
+  }
+  if (typeof banned !== "boolean") {
+    throw new DataValidationError("banned must be a boolean");
+  }
+
+  const updatedUser = await UserAccount.findByIdAndUpdate(
+    userId,
+    { banned },
+    { new: true }
+  )
+    .populate({
+      path: "userInfo",
+      select: "name email profileImage"
+    })
+    .lean();
+
+  if (!updatedUser) throw new RecordNotFoundError("User not found");
+
+  const rawPath = updatedUser.userInfo?.profileImage || null;
+  const profileImage = rawPath ? `${BASE_URL}/uploads/profileImages/${path.basename(rawPath)}` : null;
+
+  return {
+    _id: updatedUser._id,
+    role: updatedUser.role,
+    createdAt: updatedUser.createdAt,
+    deleted: updatedUser.deleted,
+    banned: updatedUser.banned, // Ensure banned is returned
+    profileImage,
+    name: updatedUser.userInfo?.name ?? "Unknown",
+    email: updatedUser.email ?? "Unknown",
+  };
 }
 
 // ——— Events ——————————————————————————————————————————————————————
@@ -204,4 +242,5 @@ module.exports = {
   hardDeleteMedia,
   getPlatformAnalytics,
   getEventsByUser,
+  updateUserStatus,
 };

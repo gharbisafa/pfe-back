@@ -226,6 +226,25 @@ const fetchAllEvents = async (req, res) => {
     return res.sendStatus(500);
   }
 };
+const banUser = async (req, res) => {
+  try {
+    const { banned } = req.body; // Expect { banned: true/false }
+    if (typeof banned !== "boolean") {
+      throw new DataValidationError("banned must be a boolean");
+    }
+    const updatedUser = await adminService.updateUserStatus(req.params.id, banned);
+    res.status(200).json({ message: banned ? "User banned successfully" : "User unbanned successfully", user: updatedUser });
+  } catch (error) {
+    if (error instanceof RecordNotFoundError) {
+      res.status(404).json({ error: error.message });
+    } else if (error instanceof DataValidationError) {
+      res.status(400).json({ error: error.message });
+    } else {
+      console.error("banUser error:", error);
+      res.sendStatus(500);
+    }
+  };
+};
 // ————————————————————————————————————————————————————————————————————————
 module.exports = {
   // users
@@ -234,6 +253,7 @@ module.exports = {
   fetchUserById,
   updateUserRole,
   softDeleteUser,
+  banUser,
   // events
   banEvent,
   getDeletedEvents,

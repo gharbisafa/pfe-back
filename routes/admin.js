@@ -35,6 +35,9 @@ router.get("/users/:id", adminController.fetchUserById);
 router.put("/users/:id", adminController.updateUserRole);
 router.delete("/users/:id", adminController.softDeleteUser);
 
+// ban user route
+router.put("/users/:id/ban", adminController.banUser);
+
 // events
 router.get   ("/events/deleted", adminController.getDeletedEvents);
 router.put   ("/events/restore/:id", adminController.restoreEvent);
