@@ -343,25 +343,47 @@ const toggleFollow = async (req, res) => {
 
 const getFollowStats = async (req, res) => {
   try {
-    const stats = await userAccountService.getFollowStats(req.params.id);
-    console.log("Follow stats for user:", req.params.id, stats);
-    res.status(200).json(stats);
-  } catch (error) {
-    console.error(error);
-    res.sendStatus(500);
+    const userAccount = await UserAccount.findById(req.params.id).populate('userInfo', 'followers following');
+    if (!userAccount || userAccount.deleted) return res.status(404).json({ message: 'User account not found' });
+    res.json({
+      followersCount: userAccount.userInfo.followers.length,
+      followingCount: userAccount.userInfo.following.length,
+    });
+  } catch (err) {
+    console.error('Error fetching follow stats:', err);
+    res.status(500).json({ message: 'Error fetching follow stats', error: err.message });
   }
 };
 
-
 const getFollowing = async (req, res) => {
+  console.log('Fetching following for user account with id:', req.params.id);
   try {
-    const list = await userAccountService.getFollowing(req.params.id);
-    // tell the browser “never cache this, always re‐fetch”
-    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    res.json(list);
+    const userAccount = await UserAccount.findById(req.params.id)
+      .populate('userInfo', 'name email profileImage followers following')
+      .select('-password -deleted');
+    if (!userAccount || userAccount.deleted) {
+      return res.status(404).json({ message: 'User account not found' });
+    }
+
+    // Query User model for following users
+    const followingUsers = await Users.find({ _id: { $in: userAccount.userInfo.following } })
+      .select('name email profileImage _id');
+    console.log('Following users found:', followingUsers);
+
+    // Map to SimpleUser format
+    const responseData = followingUsers.map(user => ({
+      _id: user._id.toString(),
+      userInfo: {
+        name: user.name,
+        profileImage: user.profileImage,
+      },
+    }));
+
+    console.log('Mapped following data:', responseData);
+    res.json(responseData);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error fetching following" });
+    console.error('Error fetching following:', err);
+    res.status(500).json({ message: 'Error fetching following', error: err.message });
   }
 };
 
@@ -387,27 +409,67 @@ const getMyFollowing = async (req, res) => {
 };
 
 const getUserById = async (req, res) => {
+  console.log('Fetching user account with params.id:', req.params.id);
   try {
-    const user = await UserAccount.findById(req.params.id)
-      .populate("userInfo", "name profileImage");
-
-    if (!user) {
-      return res.status(404).json({ error: "USER_NOT_FOUND", message: "User not found" });
+    const userAccount = await UserAccount.findById(req.params.id)
+      .populate('userInfo', 'name email profileImage bio followers following') // Populate followers and following
+      .select('-password -deleted');
+    console.log('User account found:', userAccount);
+    if (!userAccount || userAccount.deleted) {
+      return res.status(404).json({ message: 'User account not found' });
     }
 
-    res.status(200).json({
-      _id: user._id,
-      email: user.email,
-      role: user.role,
-      userInfo: user.userInfo,
-    });
+    // Get followers count from the User model
+    const followersCount = userAccount.userInfo.followers ? userAccount.userInfo.followers.length : 0;
+
+    // Get following count from the User model
+    const followingCount = userAccount.userInfo.following ? userAccount.userInfo.following.length : 0;
+
+    const userData = {
+      _id: userAccount._id,
+      name: userAccount.userInfo.name,
+      email: userAccount.email,
+      profileImage: userAccount.userInfo.profileImage,
+      bio: userAccount.userInfo.bio || '',
+      followersCount, // From User model's followers array
+      followingCount, // From User model's following array
+    };
+    console.log('User data with counts:', userData);
+    res.json(userData);
   } catch (err) {
-    console.error("Error in getUserById:", err);
-    res.status(500).json({ error: "SERVER_ERROR", message: "Failed to fetch user" });
+    console.error('Error fetching user account:', err);
+    res.status(500).json({ message: 'Error fetching user account', error: err.message });
+  }
+};
+// In userAccount.js
+const updateBio = async (req, res) => {
+  try {
+    const userAccount = await UserAccount.findById(req.params.id);
+    if (!userAccount || userAccount.deleted) {
+      return res.status(404).json({ message: 'User account not found' });
+    }
+    const { bio } = req.body;
+    if (!bio) {
+      return res.status(400).json({ message: 'Bio is required' });
+    }
+    const updatedUser = await Users.findByIdAndUpdate(
+      userAccount.userInfo,
+      { bio },
+      { new: true, runValidators: true }
+    );
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ message: 'Bio updated', bio: updatedUser.bio });
+  } catch (err) {
+    console.error('Error updating bio:', err);
+    res.status(500).json({ message: 'Error updating bio', error: err.message });
   }
 };
 
 module.exports = {
+  savePlayerId,
+  updateBio,
   get,
   getAllUsers,
   getDeleted,

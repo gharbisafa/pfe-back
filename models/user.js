@@ -1,14 +1,16 @@
+// models/user.js
 const mongoose = require("mongoose");
 const uniqueValidator = require("mongoose-unique-validator");
 
-const userSchema = mongoose.Schema(
+const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: true,
       validate: {
-        validator: (name) => /^[\p{L}-]+(?:\s+[\p{L}-]+)*$/u.test(name),
-        message: "invalid_name",  
+        validator: (name) =>
+          /^[\p{L}-]+(?:\s+[\p{L}-]+)*$/u.test(name),
+        message: "invalid_name",
       },
     },
     phone: {
@@ -16,34 +18,40 @@ const userSchema = mongoose.Schema(
       required: true,
       validate: {
         validator: (phone) =>
-          /^(((\\+[1-9]{1,4}[ \\-]*)|(\\([0-9]{2,3}\\)[ \\-]*)|([0-9]{2,4})[ \\-]*)*?[0-9]{3,4}?[ \\-]*[0-9]{3,4}?)?$/.test(
+          /^(((\+[1-9]{1,4}[ \-]*)|(\([0-9]{2,3}\)[ \-]*)|([0-9]{2,4})[ \-]*)*?[0-9]{3,4}?[ \-]*[0-9]{3,4}?)?$/.test(
             phone
           ),
         message: "invalid_phone_number",
       },
     },
     profileImage: {
-      type: String, // Path or full URL to the image
+      type: String,
       default: null,
     },
-    // 🔒 Device Token (for push notifications)
     deviceToken: {
       type: String,
-      default: null, // null if no token assigned yet
+      default: null,
     },
-    // 🧑‍🤝‍🧑 Followers: Users who follow this user
-    followers: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "UserAccount",
-    }],
-    // ➕ Following: Users this user is following
-    following: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "UserAccount",
-    }],
+    followers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "UserAccount",
+      },
+    ],
+    following: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "UserAccount",
+      },
+    ],
+
+    bio: {
+      type: String,
+      default: "",
+    },
   },
   {
-    timestamps: { createdAt: true, updatedAt: true },
+    timestamps: true,
   }
 );
 

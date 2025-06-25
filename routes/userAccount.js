@@ -23,7 +23,6 @@ router.post(
   userAccountController.savePlayerId
 );
 
-
 // ✅ User activity dashboard route
 router.get(
   "/dashboard",
@@ -63,7 +62,6 @@ router.put(
   middlewares.setData,
   userAccountController.putSelf
 );
-
 // ✅ Delete own user
 router.delete(
   "/:id",
@@ -109,6 +107,12 @@ router.get(
   "/following",
   passport.authenticate("jwt", { session: false }),
   userAccountController.getMyFollowing
+);
+// ✅ Update bio
+router.put(
+  "/:id/bio",
+  passport.authenticate("jwt", { session: false }),
+  userAccountController.updateBio // Add this controller function
 );
 
 // ✅ Get user by ID — LAST
