@@ -176,6 +176,16 @@ const deleteById = async (req, res) => {
   }
 };
 
+const softDeleteEvent = async (req, res) => {
+  try {
+    const event = await Event.findByIdAndUpdate(req.params.id, { deleted: true }, { new: true });
+    if (!event) return res.status(404).json({ message: "Event not found" });
+    res.status(200).json({ message: "Event soft deleted" });
+  } catch (error) {
+    res.status(500).json({ message: "Error soft deleting event" });
+  }
+};
+
 const toggleLike = async (req, res) => {
   const { eventId } = req.params;
   const userId = req.user.id || req.user._id;
@@ -418,7 +428,14 @@ const uploadEventPhotos = async (req, res) => {
   }
 };
 
-
+const getSoftDeletedEvents = async (req, res) => {
+  try {
+    const events = await Event.find({ deleted: true }).lean();
+    res.status(200).json(events);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching soft deleted events" });
+  }
+};
 
 module.exports = {
   getPublicEventsByUser,
@@ -442,4 +459,6 @@ module.exports = {
   notifyGuests,
   getEventRSVPs,
   uploadEventPhotos,
+  softDeleteEvent,
+  getSoftDeletedEvents,
 };

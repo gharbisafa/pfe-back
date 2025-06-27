@@ -226,7 +226,11 @@ async function getAllEvents() {
     })
     .lean();
 }
-
+const logEvent = async ({ userId, action, resource, metadata }) => {
+  await axios.post('http://localhost:3000/api/audit', {
+    userId, action, resource, metadata,
+  });
+};
 module.exports = {
   getUsers,
   getUserById,
@@ -243,4 +247,5 @@ module.exports = {
   getPlatformAnalytics,
   getEventsByUser,
   updateUserStatus,
+  logEvent,
 };

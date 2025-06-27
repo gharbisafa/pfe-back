@@ -7,22 +7,19 @@ const Event = require("../models/event"); // ✅ path to your Event model
 // Fetch all media for a specific event
 const getByEventId = async (eventId, userId, isAdmin) => {
   try {
-    // Build filter conditions
+    console.log("Fetching media for eventId:", eventId, "userId:", userId, "isAdmin:", isAdmin);
     const filters = { event: eventId };
-
     if (isAdmin) {
-      // Admin can see everything
-      filters.deleted = { $ne: false }; // Include deleted if admin
+      filters.deleted = { $ne: false };
     } else {
-      // Non-admin users
-      filters.deleted = false; // Exclude deleted
+      filters.deleted = false;
       filters.$or = [
-        { archived: false }, // Include non-archived
-        { archived: true, user: userId }, // Include archived by the same user
+        { archived: false },
+        { archived: true, user: userId },
       ];
     }
-
     const media = await EventMedia.find(filters).lean();
+    console.log("Media found:", media);
     return media;
   } catch (error) {
     console.error("Error fetching media for event:", error);

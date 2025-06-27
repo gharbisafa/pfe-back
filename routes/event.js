@@ -91,6 +91,14 @@ router.post(
 );
 
 // DELETE: Soft-delete event
+router.put(
+  "/:id/soft-delete",
+  passport.authenticate("jwt", { session: false }),
+  eventMiddleware.isEventOwner,
+  eventController.softDeleteEvent
+);
+router.get("/soft-deleted", eventController.getSoftDeletedEvents);
+// DELETE: Delete event by ID
 router.delete(
   "/:id",
   passport.authenticate("jwt", { session: false }),
@@ -138,6 +146,7 @@ router.delete(
     }
   }
 );
+
 
 // GET: Get all events created by the authenticated user
 router.get(

@@ -245,6 +245,15 @@ const banUser = async (req, res) => {
     }
   };
 };
+const getSoftDeletedEvents = async (req, res) => {
+  try {
+    const events = await Event.find({ deleted: true }).lean();
+    res.status(200).json(events);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching soft deleted events" });
+  }
+};
+
 // ————————————————————————————————————————————————————————————————————————
 module.exports = {
   // users
@@ -261,6 +270,7 @@ module.exports = {
   hardDeleteEvent,
   fetchEventsByUser,     
   fetchAllEvents,
+  getSoftDeletedEvents,
   // media
   getDeletedMedia,
   restoreMedia,

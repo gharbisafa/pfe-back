@@ -1,6 +1,6 @@
 // routes/admin.js
 const express = require("express");
-const router  = express.Router();
+const router = express.Router();
 const passport = require("passport");
 const { isAuthenticated, isAdmin } = require("../middlewares/auth");
 const adminController = require("../controllers/admin");
@@ -13,10 +13,10 @@ router.use(
 );
 
 // users
-router.get   ("/admin",          adminController.welcomeAdmin);
-router.get   ("/users",          adminController.fetchUsers);
-router.put   ("/users/:id",      adminController.updateUserRole);
-router.delete("/users/:id",      adminController.softDeleteUser);
+router.get("/admin", adminController.welcomeAdmin);
+router.get("/users", adminController.fetchUsers);
+router.put("/users/:id", adminController.updateUserRole);
+router.delete("/users/:id", adminController.softDeleteUser);
 // fetch this user's created events:
 
 // users list
@@ -39,13 +39,17 @@ router.delete("/users/:id", adminController.softDeleteUser);
 router.put("/users/:id/ban", adminController.banUser);
 
 // events
-router.get   ("/events/deleted", adminController.getDeletedEvents);
-router.put   ("/events/restore/:id", adminController.restoreEvent);
+router.get("/events/deleted", adminController.getDeletedEvents);
+router.put("/events/restore/:id", adminController.restoreEvent);
 router.delete("/events/:id", adminController.hardDeleteEvent);
+router.get(
+  "/events/soft-deleted",
+  adminController.getDeletedEvents
+);
 
 // media
-router.get   ("/media/deleted", adminController.getDeletedMedia);
-router.put   ("/media/restore/:id", adminController.restoreMedia);
+router.get("/media/deleted", adminController.getDeletedMedia);
+router.put("/media/restore/:id", adminController.restoreMedia);
 router.delete("/media/:id", adminController.hardDeleteMedia);
 
 // analytics
@@ -54,9 +58,9 @@ router.get("/analytics", adminController.getPlatformAnalytics);
 router.get("/events", adminController.fetchAllEvents);
 
 // Existing event routes
-router.get   ("/events/deleted",     adminController.getDeletedEvents);
-router.put   ("/events/restore/:id", adminController.restoreEvent);
-router.put   ("/events/:id/ban",     adminController.banEvent);
-router.delete("/events/:id",         adminController.hardDeleteEvent);
+router.get("/events/deleted", adminController.getDeletedEvents);
+router.put("/events/restore/:id", adminController.restoreEvent);
+router.put("/events/:id/ban", adminController.banEvent);
+router.delete("/events/:id", adminController.hardDeleteEvent);
 
 module.exports = router;
